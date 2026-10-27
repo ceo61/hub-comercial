@@ -143,6 +143,7 @@ header.top h1{font-size:16px;margin:0;font-weight:650}
     <a href="#bringit" data-pg="bringit">🥊 1 · Parceiros da bringIT</a>
     <a href="#nossas" data-pg="nossas">🏪 2 · Nossas revendas</a>
     <a href="#cadastro" data-pg="cadastro">✅ 3 · Cadastro (site)</a>
+    <a href="#acessos" data-pg="acessos" class="hide">👥 Acessos e níveis</a>
     <div class="spacer"></div>
     <button id="btnTema">🌙 Tema escuro</button>
     <button id="btnSair">Sair</button>
@@ -156,7 +157,7 @@ header.top h1{font-size:16px;margin:0;font-weight:650}
       <span class="eyebrow" id="quem"></span>
     </header>
     <div class="content">
-      <div id="semAcesso" class="aviso vermelho hide">Seu usuário não tem acesso a esta página. Peça ao administrador para liberar a página <b>tecnicos</b> no grupo.</div>
+      <div id="semAcesso" class="aviso vermelho hide">Seu e-mail ainda não foi liberado no hub comercial. Peça ao administrador para incluir você na tela <b>Acessos e níveis</b>.</div>
       <div id="avisoVazio" class="aviso ambar hide"></div>
 
       <section id="pg-bringit" class="pg">
@@ -221,6 +222,29 @@ header.top h1{font-size:16px;margin:0;font-weight:650}
           <div class="tabwrap"><table class="tabela" id="tabCad"></table></div>
         </div>
       </section>
+
+      <section id="pg-acessos" class="pg hide">
+        <div class="card">
+          <h2>Pessoas com acesso ao hub comercial</h2>
+          <p class="help">Quem não está nesta lista não entra (só o administrador entra sempre). Os logins são os mesmos da Supabase; criar um login aqui <b>não</b> libera nada no BB HUB nem em outros hubs.</p>
+          <div class="tabwrap"><table class="tabela" id="tabAcl"></table></div>
+          <form id="formAcl" class="toolbar" style="margin-top:12px">
+            <input type="email" id="aclEmail" placeholder="e-mail" required style="min-width:240px">
+            <input type="text" id="aclNome" placeholder="nome" style="min-width:150px">
+            <select id="aclNivel"></select>
+            <label><input type="checkbox" id="aclCriar"> criar login novo</label>
+            <input type="text" id="aclSenha" placeholder="senha inicial (mín. 8)" autocomplete="off" class="hide" style="min-width:170px">
+            <button class="btn sm" type="submit" id="aclAdd">+ liberar</button>
+          </form>
+          <p class="help" id="aclMsg" style="margin-top:8px"></p>
+        </div>
+        <div class="card">
+          <h2>Níveis e o que cada um pode fazer</h2>
+          <p class="help">Marque e clique em salvar; vale na hora para todo mundo do nível. O administrador pode tudo.</p>
+          <div class="tabwrap"><table class="tabela" id="tabNiveis"></table></div>
+          <div class="toolbar" style="margin-top:10px"><input type="text" id="nvNovo" placeholder="novo nível (chave, ex.: estagiario)"><input type="text" id="nvRotulo" placeholder="nome exibido"><button class="btn sec sm" id="nvCria">+ criar nível</button></div>
+        </div>
+      </section>
     </div>
   </main>
   <aside id="painel" class="painel hide"><div class="painel-in"><button class="fechar" id="fecharPainel" title="fechar">✕</button><div id="painelCorpo"></div></div></aside>
@@ -254,7 +278,7 @@ const normCid = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').to
 const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 2200); };
 
 const st = { email:null, admin:false, acl:null, carregado:false, pg:'bringit', resumo:{}, bringit:[], matches:[], cand:[], candCidade:'SAO PAULO/SP',
-             candCarregada:null, tecnicos:[], cadastros:[], mapas:{}, ordem:{} };
+             candCarregada:null, tecnicos:[], cadastros:[], mapas:{}, ordem:{}, nivel:null, perm:new Set(), niveis:[] };
 
 /* ---------- tema ---------- */
 function aplicaTema(t){ document.documentElement.dataset.tema = t; $('#btnTema').textContent = t === 'escuro' ? '☀️ Tema claro' : '🌙 Tema escuro'; try{ localStorage.setItem('bbhub-tema', t); }catch(e){} atualizaTiles(); }
@@ -274,16 +298,26 @@ sb.auth.onAuthStateChange((_ev, sess) => {
   else { $('#telaLogin').classList.remove('hide'); $('#telaApp').classList.add('hide'); }
 });
 
-/* ---------- acesso (mesma regra do BB HUB: admin e usuário sem grupo veem tudo) ---------- */
+/* ---------- acesso: níveis próprios do hub comercial (tabelas com_acl_*) ---------- */
+const PERMS = [['ver_bringit', 'Ver parceiros da bringIT'], ['ver_nossas', 'Ver nossas revendas'], ['ver_cadastro', 'Ver cadastro do site'],
+  ['anotar', 'Anotar, registrar ligação e mudar status'], ['revisar_match', 'Confirmar/descartar "é nosso cliente"'], ['autorizar', 'Autorizar revenda para o site'],
+  ['editar_cadastro', 'Criar/editar técnicos e aprovar formulário'], ['exportar', 'Exportar CSV']];
+const VER = {bringit:'ver_bringit', nossas:'ver_nossas', cadastro:'ver_cadastro'};
+const pode = p => st.admin || st.perm.has(p);
+const rotuloNivel = n => n === 'admin' ? 'administrador' : (st.niveis.find(x => x.nivel === n)?.rotulo || n);
 async function carregaAcl(){
   const {data:{user}} = await sb.auth.getUser();
-  st.email = (user?.email || '').toLowerCase(); st.admin = st.email === ADMIN; st.acl = null;
+  st.email = (user?.email || '').toLowerCase(); st.admin = st.email === ADMIN; st.perm = new Set(); st.nivel = st.admin ? 'admin' : null;
+  const {data:nv} = await sb.from('com_acl_niveis').select('*').order('ordem'); st.niveis = nv || [];
   if(!st.admin){
-    const {data:u} = await sb.from('acl_usuarios').select('grupo').eq('email', st.email).maybeSingle();
-    if(u?.grupo){ const {data:g} = await sb.from('acl_grupos').select('paginas').eq('grupo', u.grupo).maybeSingle(); if(g) st.acl = new Set(g.paginas || []); }
+    const {data:u} = await sb.from('com_acl_usuarios').select('*').eq('email', st.email).maybeSingle();
+    if(u && u.ativo){ st.nivel = u.nivel; (st.niveis.find(x => x.nivel === u.nivel)?.permissoes || []).forEach(p => st.perm.add(p)); }
   }
-  $('#quem').textContent = st.email;
-  if(st.acl && !st.acl.has('tecnicos')){ $('#semAcesso').classList.remove('hide'); $$('.pg').forEach(p => p.classList.add('hide')); return false; }
+  $('#quem').textContent = st.email + (st.nivel ? ' · ' + rotuloNivel(st.nivel) : '');
+  $$('.nav a[data-pg]').forEach(a => a.classList.toggle('hide', a.dataset.pg === 'acessos' ? !st.admin : !pode(VER[a.dataset.pg])));
+  $$('#bqCsv, #nqCsv').forEach(b => b.classList.toggle('hide', !pode('exportar')));
+  $('#cqNovo').classList.toggle('hide', !pode('editar_cadastro'));
+  if(!st.nivel){ $('#semAcesso').classList.remove('hide'); $$('.pg').forEach(p => p.classList.add('hide')); return false; }
   return true;
 }
 
@@ -328,13 +362,15 @@ function preencheSelects(){
 }
 
 /* ---------- navegação ---------- */
-const TITULOS = {bringit:'1 · Parceiros da bringIT — quem são, se já atendemos, ligações', nossas:'2 · Nossas revendas e assistências — candidatas a técnico parceiro', cadastro:'3 · Cadastro em produção — o que o site mostra'};
+const TITULOS = {bringit:'1 · Parceiros da bringIT — quem são, se já atendemos, ligações', nossas:'2 · Nossas revendas e assistências — candidatas a técnico parceiro', cadastro:'3 · Cadastro em produção — o que o site mostra', acessos:'Acessos e níveis — quem entra e o que pode fazer'};
 function navega(pg){
-  if(!TITULOS[pg]) pg = 'bringit'; st.pg = pg; fechaPainel();
+  if(!TITULOS[pg]) pg = 'bringit';
+  if(pg === 'acessos' ? !st.admin : !pode(VER[pg])){ pg = ['bringit', 'nossas', 'cadastro'].find(p => pode(VER[p])) || (st.admin ? 'acessos' : null); if(!pg) return; }
+  st.pg = pg; fechaPainel();
   $$('.pg').forEach(s => s.classList.toggle('hide', s.id !== 'pg-' + pg));
   $$('.nav a[data-pg]').forEach(a => a.classList.toggle('ativo', a.dataset.pg === pg));
   $('#titulo').textContent = TITULOS[pg];
-  if(pg === 'bringit') renderBringit(); if(pg === 'nossas') renderNossas(); if(pg === 'cadastro') renderCadastro();
+  if(pg === 'bringit') renderBringit(); if(pg === 'nossas') renderNossas(); if(pg === 'cadastro') renderCadastro(); if(pg === 'acessos') renderAcessos();
 }
 addEventListener('hashchange', () => navega(location.hash.replace('#', '')));
 
@@ -410,7 +446,7 @@ function renderBringit(){
   $$('#tabBringit tr.lin').forEach(tr => tr.onclick = () => painelBringit(Number(tr.dataset.id)));
 }
 ['bqBusca', 'bqPraca', 'bqSit', 'bqLig', 'bqMapa', 'bqSumidos'].forEach(id => $('#' + id).addEventListener('input', renderBringit));
-$('#bqCsv').onclick = () => baixaCsv('bringit_parceiros.csv', bringitFiltrados().map(p => ({id:p.bringit_id, nome:p.nome, cidade:p.cidade, uf:p.uf, telefone:p.telefone, nota:p.rating, avaliacoes:p.n_avaliacoes, google:p.google_url,
+$('#bqCsv').onclick = () => pode('exportar') && baixaCsv('bringit_parceiros.csv', bringitFiltrados().map(p => ({id:p.bringit_id, nome:p.nome, cidade:p.cidade, uf:p.uf, telefone:p.telefone, nota:p.rating, avaliacoes:p.n_avaliacoes, google:p.google_url,
   situacao:situacao(p), clientes:st.matches.filter(m => m.bringit_id === p.bringit_id && m.confirmado).map(m => `${m.nome_cliente} (${m.unidades})`).join(' | '), status:p.status, ligado_em:p.ligado_em, observacao:p.observacao, presente:p.presente, ultima_raspagem:p.ultima_captura})));
 
 async function painelBringit(id){
@@ -428,26 +464,27 @@ async function painelBringit(id){
         <span class="muted">${cnpjFmt(m.cnpj)} · cód. ${esc(m.cod_cliente || '—')} · ${esc(m.cidade || '')}/${esc(m.uf || '')} · compra em ${esc(m.unidades)} · última ${fData(m.ultima_compra)} · ${fNum(m.nfs)} NFs · ${fBRL(m.receita)}</span><br>
         <span class="pill ${m.confirmado === true ? 'good' : m.confirmado === false ? 'crit' : 'warn'}">${m.confirmado === true ? 'confirmado' : m.confirmado === false ? 'não é' : 'pendente'}</span>
         <span class="muted">${MET[m.metodo] || esc(m.metodo)}${m.metodo === 'nome' ? ' · ' + Math.round(m.score * 100) + '%' : ''}</span>
-        ${m.confirmado === null ? ` <button class="btn ok sm" data-act="match" data-mid="${m.id}" data-v="1">✔ é este</button> <button class="btn sec sm" data-act="match" data-mid="${m.id}" data-v="0">✖ não é</button>` : ` <button class="btn sec sm" data-act="match" data-mid="${m.id}" data-v="">↩ reabrir</button>`}</div>`).join('')
+        ${!pode('revisar_match') ? '' : m.confirmado === null ? ` <button class="btn ok sm" data-act="match" data-mid="${m.id}" data-v="1">✔ é este</button> <button class="btn sec sm" data-act="match" data-mid="${m.id}" data-v="0">✖ não é</button>` : ` <button class="btn sec sm" data-act="match" data-mid="${m.id}" data-v="">↩ reabrir</button>`}</div>`).join('')
       : '<span class="muted">nenhum cliente com este telefone ou nome parecido na mesma cidade (BBDI e BB Baterias).</span>'}
-      <div class="acoes"><input type="text" id="bqCnpjManual" placeholder="ligar a um CNPJ manualmente (só dígitos)" style="flex:1"><button class="btn sec sm" data-act="matchManual">+ ligar</button></div></div>
+      ${pode('revisar_match') ? `<div class="acoes"><input type="text" id="bqCnpjManual" placeholder="ligar a um CNPJ manualmente (só dígitos)" style="flex:1"><button class="btn sec sm" data-act="matchManual">+ ligar</button></div>` : ''}</div>
     <div class="sec"><h3>Relacionamento</h3>
-      <div class="acoes"><button class="btn sm" data-act="ligado">📞 Liguei hoje</button>
+      ${pode('anotar') ? `<div class="acoes"><button class="btn sm" data-act="ligado">📞 Liguei hoje</button>
         <select id="bqStatusSel"><option value="novo">novo</option><option value="nosso_cliente">nosso cliente</option><option value="contatado">contatado</option><option value="sem_interesse">sem interesse</option><option value="parceiro">virou parceiro nosso</option></select>
-        <button class="btn sec sm" data-act="status">salvar status</button></div>
+        <button class="btn sec sm" data-act="status">salvar status</button></div>` : '<span class="muted">seu nível não registra ligações nem anotações.</span>'}
       <div class="kv" style="margin-top:8px"><b>Ligado em</b><span>${fData(p.ligado_em)}</span><b>Atualizado</b><span>${fDataHora(p.atualizado_em)} ${esc(p.atualizado_por || '')}</span></div>
-      <textarea id="bqObs" placeholder="observação fixa (aparece na tabela)" style="margin-top:8px">${esc(p.observacao || '')}</textarea>
+      ${pode('anotar') ? `<textarea id="bqObs" placeholder="observação fixa (aparece na tabela)" style="margin-top:8px">${esc(p.observacao || '')}</textarea>
       <div class="acoes"><button class="btn sec sm" data-act="obs">salvar observação</button></div>
       <textarea id="bqNota" placeholder="anotação com data (ex.: falei com o dono, pediu tabela)" style="margin-top:8px"></textarea>
-      <div class="acoes"><button class="btn sec sm" data-act="nota">+ anotar</button></div>
+      <div class="acoes"><button class="btn sec sm" data-act="nota">+ anotar</button></div>` : (p.observacao ? `<p style="margin:8px 0 0">${esc(p.observacao)}</p>` : '')}
       <div id="bqTl" style="margin-top:8px" class="muted">carregando anotações…</div></div>
     <div class="sec"><h3>Evolução nas raspagens</h3><div id="bqHist" class="muted">carregando…</div></div>`);
-  $('#bqStatusSel').value = p.status || 'novo';
+  const bqSel = $('#bqStatusSel'); if(bqSel) bqSel.value = p.status || 'novo';
   $('#bqTl').innerHTML = await timeline('bringit', id);
   const {data:h} = await sb.from('tecnicos_bringit_hist').select('*').eq('bringit_id', id).order('capturado_em');
   $('#bqHist').innerHTML = (h || []).length ? `<table class="tabela"><thead><tr><th>Raspagem</th><th class="num">Nota</th><th class="num">Aval.</th><th>Cidade</th><th>Listado</th></tr></thead><tbody>${h.map(x => `<tr><td>${fData(x.capturado_em)}</td><td class="num">${x.rating ?? '—'}</td><td class="num">${fNum(x.n_avaliacoes)}</td><td>${esc(x.cidade || '')}</td><td>${x.presente ? 'sim' : '<span class="pill crit">não</span>'}</td></tr>`).join('')}</tbody></table>` : 'sem histórico';
   $('#painelCorpo').onclick = async e => {
     const b = e.target.closest('[data-act]'); if(!b) return; const act = b.dataset.act;
+    if((['match', 'matchManual'].includes(act) && !pode('revisar_match')) || (['ligado', 'status', 'obs', 'nota'].includes(act) && !pode('anotar'))) return toast('seu nível não permite esta ação');
     try{
       if(act === 'match'){ const v = b.dataset.v === '' ? null : b.dataset.v === '1';
         const {error} = await sb.from('tecnicos_bringit_match').update({confirmado:v, revisado_por:st.email, revisado_em:agora()}).eq('id', Number(b.dataset.mid)); if(error) throw error;
@@ -505,7 +542,7 @@ async function renderNossas(){
 }
 $('#nqCidade').addEventListener('change', () => { st.candCidade = $('#nqCidade').value; renderNossas(); });
 ['nqBusca', 'nqStatus', 'nqUn', 'nqAtivos', 'nqMapa', 'nqBringit'].forEach(id => $('#' + id).addEventListener('input', renderNossas));
-$('#nqCsv').onclick = () => baixaCsv('nossas_revendas.csv', candFiltrados().map(c => ({cnpj:c.cnpj, nome_fantasia:c.nome_fantasia, razao_social:c.razao_social, cidade:c.cidade, uf:c.uf, cep:c.cep, unidades:c.unidades, grupo:c.grupo_cliente, cod_001:c.cod_001, cod_002:c.cod_002, telefone:c.ddd ? `(${c.ddd}) ${c.telefone}` : c.telefone, email:c.email, primeira_compra:c.primeira_compra, ultima_compra:c.ultima_compra, nfs:c.nfs, receita:c.receita, status:c.status, ligado_em:c.ligado_em, observacao:c.observacao})));
+$('#nqCsv').onclick = () => pode('exportar') && baixaCsv('nossas_revendas.csv', candFiltrados().map(c => ({cnpj:c.cnpj, nome_fantasia:c.nome_fantasia, razao_social:c.razao_social, cidade:c.cidade, uf:c.uf, cep:c.cep, unidades:c.unidades, grupo:c.grupo_cliente, cod_001:c.cod_001, cod_002:c.cod_002, telefone:c.ddd ? `(${c.ddd}) ${c.telefone}` : c.telefone, email:c.email, primeira_compra:c.primeira_compra, ultima_compra:c.ultima_compra, nfs:c.nfs, receita:c.receita, status:c.status, ligado_em:c.ligado_em, observacao:c.observacao})));
 
 async function painelCand(cnpj){
   const c = st.cand.find(x => x.cnpj === cnpj); if(!c) return;
@@ -514,20 +551,21 @@ async function painelCand(cnpj){
     <div class="kv" style="margin-top:10px"><b>Cidade</b><span>${esc(c.cidade || '—')} ${esc(c.uf || '')} · CEP ${esc(c.cep || '—')}</span><b>Telefone</b><span>${telLink(c.ddd && c.telefone ? `(${c.ddd}) ${c.telefone}` : c.telefone, c.telefone_e164)}</span>
       <b>E-mail</b><span>${c.email ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '—'}</span><b>Códigos</b><span>BBDI ${esc(c.cod_001 || '—')} · BB Baterias ${esc(c.cod_002 || '—')}</span>
       <b>Compras</b><span>${fNum(c.nfs)} NFs · ${fBRL(c.receita)} · de ${fData(c.primeira_compra)} a ${fData(c.ultima_compra)} ${c.ativo_24m ? '<span class="pill good">ativa</span>' : '<span class="pill">inativa</span>'}</span>
-      <b>Posição</b><span>${c.lat == null ? '<span class="pill warn">sem coordenada</span>' : `${c.lat.toFixed(5)}, ${c.lng.toFixed(5)} <span class="muted">(${esc(c.geo_fonte || '')})</span>`} ${c.cep ? ' <button class="btn sec sm" data-act="geo">📍 geocodificar pelo CEP</button>' : ''}</span>
-      <b>No site</b><span>${tec ? `técnico #${tec.id} ${tec.ativo ? '<span class="pill good">ativo</span>' : '<span class="pill">inativo</span>'} <button class="btn sec sm" data-act="verTec">abrir cadastro</button>` : '<span class="muted">ainda não</span>'}</span></div>
+      <b>Posição</b><span>${c.lat == null ? '<span class="pill warn">sem coordenada</span>' : `${c.lat.toFixed(5)}, ${c.lng.toFixed(5)} <span class="muted">(${esc(c.geo_fonte || '')})</span>`} ${c.cep && pode('anotar') ? ' <button class="btn sec sm" data-act="geo">📍 geocodificar pelo CEP</button>' : ''}</span>
+      <b>No site</b><span>${tec ? `técnico #${tec.id} ${tec.ativo ? '<span class="pill good">ativo</span>' : '<span class="pill">inativo</span>'} ${pode('ver_cadastro') ? '<button class="btn sec sm" data-act="verTec">abrir cadastro</button>' : ''}` : '<span class="muted">ainda não</span>'}</span></div>
     <div class="sec"><h3>Ações</h3><div class="acoes">
-      <button class="btn sm" data-act="ligado">📞 Liguei hoje</button>
-      <button class="btn ok sm" data-act="autorizar" ${c.status === 'autorizado' ? 'disabled' : ''}>✅ Autorizar → vai para o site</button>
-      <button class="btn sec sm" data-act="st" data-v="sem_interesse">sem interesse</button><button class="btn sec sm" data-act="st" data-v="recusado">recusar</button><button class="btn sec sm" data-act="st" data-v="candidato">voltar a candidata</button></div>
+      ${pode('anotar') ? `<button class="btn sm" data-act="ligado">📞 Liguei hoje</button>` : ''}
+      ${pode('autorizar') ? `<button class="btn ok sm" data-act="autorizar" ${c.status === 'autorizado' ? 'disabled' : ''}>✅ Autorizar → vai para o site</button>` : ''}
+      ${pode('anotar') ? `<button class="btn sec sm" data-act="st" data-v="sem_interesse">sem interesse</button><button class="btn sec sm" data-act="st" data-v="recusado">recusar</button><button class="btn sec sm" data-act="st" data-v="candidato">voltar a candidata</button>` : '<span class="muted">seu nível não registra ligações nem muda status.</span>'}</div>
       <p class="muted" style="font-size:12px;margin:8px 0 0">Autorizar cria a linha em <code>tecnicos</code> (origem = cadastro, parceiro desde = 1ª compra, serviços = nº de NFs) e ela passa a aparecer no modal do site para CEPs num raio de 50 km. Precisa de coordenada.</p>
       <div class="kv" style="margin-top:8px"><b>Ligado em</b><span>${fData(c.ligado_em)}</span><b>Atualizado</b><span>${fDataHora(c.atualizado_em)} ${esc(c.atualizado_por || '')}</span></div>
-      <textarea id="nqObs" placeholder="observação fixa" style="margin-top:8px">${esc(c.observacao || '')}</textarea><div class="acoes"><button class="btn sec sm" data-act="obs">salvar observação</button></div>
-      <textarea id="nqNota" placeholder="anotação com data" style="margin-top:8px"></textarea><div class="acoes"><button class="btn sec sm" data-act="nota">+ anotar</button></div>
+      ${pode('anotar') ? `<textarea id="nqObs" placeholder="observação fixa" style="margin-top:8px">${esc(c.observacao || '')}</textarea><div class="acoes"><button class="btn sec sm" data-act="obs">salvar observação</button></div>
+      <textarea id="nqNota" placeholder="anotação com data" style="margin-top:8px"></textarea><div class="acoes"><button class="btn sec sm" data-act="nota">+ anotar</button></div>` : (c.observacao ? `<p style="margin:8px 0 0">${esc(c.observacao)}</p>` : '')}
       <div id="nqTl" style="margin-top:8px" class="muted">carregando…</div></div>`);
   $('#nqTl').innerHTML = await timeline('candidato', cnpj);
   $('#painelCorpo').onclick = async e => {
     const b = e.target.closest('[data-act]'); if(!b) return; const act = b.dataset.act; const upd = o => sb.from('tecnicos_candidatos').update({...o, atualizado_por:st.email, atualizado_em:agora()}).eq('cnpj', cnpj);
+    if((act === 'autorizar' && !pode('autorizar')) || (['geo', 'ligado', 'st', 'obs', 'nota'].includes(act) && !pode('anotar')) || (act === 'verTec' && !pode('ver_cadastro'))) return toast('seu nível não permite esta ação');
     try{
       if(act === 'geo'){ const {data, error} = await sb.rpc('tecnicos_geocode_cep', {p_cep:c.cep}); if(error) throw error; const g = data?.[0]; if(!g) throw new Error('CEP não localizado');
         const {error:e2} = await upd({lat:g.lat, lng:g.lng, geo_fonte:'cep'}); if(e2) throw e2; Object.assign(c, {lat:g.lat, lng:g.lng, geo_fonte:'cep'}); }
@@ -565,12 +603,12 @@ function renderCadastro(){
   $('#tabCad').innerHTML = `<thead><tr><th>Recebido</th><th>Empresa</th><th>CNPJ</th><th>Responsável</th><th>Contato</th><th>CEP</th><th>Google</th><th>Origem</th><th>Status</th><th></th></tr></thead><tbody>` +
     (cads.length ? cads.map(c => `<tr><td>${fDataHora(c.criado_em)}</td><td><b>${esc(c.nome_empresa)}</b></td><td>${cnpjFmt(c.cnpj) || '—'}</td><td>${esc(c.responsavel || '—')}</td><td>${telLink(c.telefone)}<br><span class="muted">${esc(c.email || '')}</span></td><td>${esc(c.cep || '—')}</td>
       <td>${c.google_url ? `<a href="${esc(c.google_url)}" target="_blank" rel="noopener">↗</a>` : '—'}</td><td>${esc(c.origem_form || '')}</td><td><span class="pill ${c.status === 'aprovado' ? 'good' : c.status === 'recusado' ? 'crit' : 'warn'}">${esc(c.status)}</span>${c.tecnico_id ? ` <span class="muted">#${c.tecnico_id}</span>` : ''}</td>
-      <td>${c.status === 'pendente' ? `<button class="btn ok sm" data-cad="${c.id}" data-v="aprovar">aprovar</button> <button class="btn sec sm" data-cad="${c.id}" data-v="recusar">recusar</button>` : ''}</td></tr>`).join('')
+      <td>${c.status === 'pendente' && pode('editar_cadastro') ? `<button class="btn ok sm" data-cad="${c.id}" data-v="aprovar">aprovar</button> <button class="btn sec sm" data-cad="${c.id}" data-v="recusar">recusar</button>` : ''}</td></tr>`).join('')
     : '<tr><td colspan="10" class="muted">nenhum cadastro recebido pelo formulário ainda.</td></tr>') + '</tbody>';
   $$('#tabCad [data-cad]').forEach(b => b.onclick = () => decideCadastro(Number(b.dataset.cad), b.dataset.v));
 }
 ['cqBusca', 'cqAtivos'].forEach(id => $('#' + id).addEventListener('input', renderCadastro));
-$('#cqNovo').onclick = () => painelTec(null);
+$('#cqNovo').onclick = () => pode('editar_cadastro') ? painelTec(null) : toast('seu nível não edita o cadastro');
 
 const CAMPOS_TEC = [['nome', 'Nome (como aparece no site)', 'text', 'full'], ['telefone', 'Telefone (exibido)', 'text'], ['whatsapp', 'WhatsApp (só dígitos, com DDD)', 'text'],
   ['cep', 'CEP', 'text'], ['endereco', 'Endereço', 'text'], ['bairro', 'Bairro', 'text'], ['cidade', 'Cidade', 'text'], ['uf', 'UF', 'text'],
@@ -580,20 +618,22 @@ const CAMPOS_TEC = [['nome', 'Nome (como aparece no site)', 'text', 'full'], ['t
 function painelTec(id){
   const t = id ? st.tecnicos.find(x => x.id === id) : {origem:'cadastro', ativo:true, destaque:false};
   if(!t) return;
+  const ro = !pode('editar_cadastro');
   abrePainel(`<span class="eyebrow">${id ? 'técnico #' + id + ' · origem ' + esc(t.origem) : 'novo técnico (manual)'}</span><h2>${esc(t.nome || 'Novo técnico')}</h2>
     <div class="sec"><h3>Como aparece no modal do site</h3><div class="preview"><div class="pv-nome">${esc(t.nome || 'Nome do técnico')} ${t.destaque ? '<span class="pill good">Parceiro TOP</span>' : ''}</div>
       <div class="pv-sub">${esc(t.bairro ? t.bairro + ' · ' : '')}${esc(t.cidade || 'Cidade')} · ★ ${t.rating ?? '—'} (${fNum(t.n_avaliacoes || 0)} avaliações)${t.parceiro_desde ? ' · Parceiro desde ' + new Date(t.parceiro_desde + 'T12:00:00').getFullYear() : ''}${t.servicos_concluidos ? ' · Serviços: ' + fNum(t.servicos_concluidos) + '+' : ''}</div>
       <span class="pv-btn">Solicitar orçamento (WhatsApp)</span></div></div>
     <div class="sec"><h3>Dados</h3><form id="formTec" class="form">
-      ${CAMPOS_TEC.map(([k, l, ty, full]) => `<label class="${full || ''}">${l}<input name="${k}" type="${ty}" step="any" value="${esc(ty === 'date' ? (t[k] || '').slice(0, 10) : (t[k] ?? ''))}"></label>`).join('')}
-      <label><input type="checkbox" name="ativo" ${t.ativo ? 'checked' : ''}> ativo (aparece no site)</label><label><input type="checkbox" name="destaque" ${t.destaque ? 'checked' : ''}> Parceiro TOP (primeiro na lista)</label>
+      ${CAMPOS_TEC.map(([k, l, ty, full]) => `<label class="${full || ''}">${l}<input name="${k}" type="${ty}" step="any" ${ro ? 'disabled' : ''} value="${esc(ty === 'date' ? (t[k] || '').slice(0, 10) : (t[k] ?? ''))}"></label>`).join('')}
+      <label><input type="checkbox" name="ativo" ${ro ? 'disabled' : ''} ${t.ativo ? 'checked' : ''}> ativo (aparece no site)</label><label><input type="checkbox" name="destaque" ${ro ? 'disabled' : ''} ${t.destaque ? 'checked' : ''}> Parceiro TOP (primeiro na lista)</label>
     </form>
-    <div class="acoes"><button class="btn sec sm" data-act="geo">📍 lat/lng pelo CEP</button><button class="btn sm" data-act="salvar">💾 Salvar</button>${id ? '<button class="btn warn sm" data-act="desativar">desativar</button>' : ''}</div>
-    <p class="muted" style="font-size:12px">Nota e avaliações hoje são manuais; quando a chave do Google Places estiver ativa, a coleta mensal atualiza sozinha (ToS Google: no máximo 30 dias).</p></div>
-    ${id ? `<div class="sec"><h3>Anotações</h3><textarea id="tqNota" placeholder="anotação com data"></textarea><div class="acoes"><button class="btn sec sm" data-act="nota">+ anotar</button></div><div id="tqTl" class="muted" style="margin-top:8px">carregando…</div></div>` : ''}`);
+    ${ro ? '<p class="muted" style="font-size:12px">Seu nível só consulta o cadastro; edição é do supervisor.</p>' : `<div class="acoes"><button class="btn sec sm" data-act="geo">📍 lat/lng pelo CEP</button><button class="btn sm" data-act="salvar">💾 Salvar</button>${id ? '<button class="btn warn sm" data-act="desativar">desativar</button>' : ''}</div>
+    <p class="muted" style="font-size:12px">Nota e avaliações hoje são manuais; quando a chave do Google Places estiver ativa, a coleta mensal atualiza sozinha (ToS Google: no máximo 30 dias).</p>`}</div>
+    ${id ? `<div class="sec"><h3>Anotações</h3>${pode('anotar') ? '<textarea id="tqNota" placeholder="anotação com data"></textarea><div class="acoes"><button class="btn sec sm" data-act="nota">+ anotar</button></div>' : ''}<div id="tqTl" class="muted" style="margin-top:8px">carregando…</div></div>` : ''}`);
   if(id) timeline('tecnico', id).then(h => { const el = $('#tqTl'); if(el) el.innerHTML = h; });
   $('#painelCorpo').onclick = async e => {
     const b = e.target.closest('[data-act]'); if(!b) return; const act = b.dataset.act; const f = $('#formTec');
+    if((['geo', 'salvar', 'desativar'].includes(act) && !pode('editar_cadastro')) || (act === 'nota' && !pode('anotar'))) return toast('seu nível não permite esta ação');
     const lerForm = () => { const o = {}; CAMPOS_TEC.forEach(([k, , ty]) => { let v = f.elements[k].value.trim(); if(ty === 'number') v = v === '' ? null : Number(v); else v = v || null; o[k] = v; });
       o.ativo = f.elements.ativo.checked; o.destaque = f.elements.destaque.checked; if(o.whatsapp) o.whatsapp = soDig(o.whatsapp).replace(/^(?!55)/, '55'); if(o.cep) o.cep = soDig(o.cep); if(o.cnpj) o.cnpj = soDig(o.cnpj); if(o.uf) o.uf = o.uf.toUpperCase().slice(0, 2);
       o.telefone_e164 = o.whatsapp || (o.telefone ? '55' + soDig(o.telefone) : null); o.tipo_telefone = o.telefone_e164 && o.telefone_e164.length === 13 && o.telefone_e164[4] === '9' ? 'celular' : 'fixo'; return o; };
@@ -611,6 +651,7 @@ function painelTec(id){
 }
 async function decideCadastro(cid, v){
   const c = st.cadastros.find(x => x.id === cid); if(!c) return;
+  if(!pode('editar_cadastro')) return toast('seu nível não aprova cadastros');
   try{
     if(v === 'recusar'){ const {error} = await sb.from('tecnicos_cadastro').update({status:'recusado'}).eq('id', cid); if(error) throw error; await anota('cadastro', cid, 'status', 'recusado'); }
     else {
@@ -624,6 +665,56 @@ async function decideCadastro(cid, v){
     toast('ok'); await carregaTecnicos(); await carregaResumo(); renderCadastro();
   }catch(err){ toast('erro: ' + (err.message || err)); }
 }
+
+/* ===================== 4. acessos e níveis (só admin) ===================== */
+async function renderAcessos(){
+  if(!st.admin) return;
+  const [{data:us}, {data:nv}] = await Promise.all([sb.from('com_acl_usuarios').select('*').order('nivel').order('email'), sb.from('com_acl_niveis').select('*').order('ordem')]);
+  st.niveis = nv || []; const lista = us || [];
+  $('#aclNivel').innerHTML = st.niveis.map(n => `<option value="${esc(n.nivel)}">${esc(n.rotulo)}</option>`).join('');
+  $('#tabAcl').innerHTML = `<thead><tr><th>E-mail</th><th>Nome</th><th>Nível</th><th>Ativo</th><th>Liberado em</th><th>Por</th><th></th></tr></thead><tbody>` +
+    (lista.length ? lista.map(u => `<tr><td>${esc(u.email)}</td><td>${esc(u.nome || '')}</td>
+      <td><select data-nv="${esc(u.email)}">${st.niveis.map(n => `<option value="${esc(n.nivel)}" ${n.nivel === u.nivel ? 'selected' : ''}>${esc(n.rotulo)}</option>`).join('')}</select></td>
+      <td><label><input type="checkbox" data-at="${esc(u.email)}" ${u.ativo ? 'checked' : ''}> ${u.ativo ? 'sim' : 'bloqueado'}</label></td>
+      <td class="muted">${fData(u.criado_em)}</td><td class="muted">${esc(u.criado_por || '')}</td><td><button class="btn sec sm" data-rm="${esc(u.email)}">remover</button></td></tr>`).join('')
+    : '<tr><td colspan="7" class="muted">ninguém liberado ainda — só o administrador entra.</td></tr>') + '</tbody>';
+  $$('#tabAcl [data-nv]').forEach(s => s.onchange = async () => { const {error} = await sb.from('com_acl_usuarios').update({nivel:s.value, atualizado_em:agora()}).eq('email', s.dataset.nv); toast(error ? 'erro: ' + error.message : 'nível salvo'); });
+  $$('#tabAcl [data-at]').forEach(c => c.onchange = async () => { const {error} = await sb.from('com_acl_usuarios').update({ativo:c.checked, atualizado_em:agora()}).eq('email', c.dataset.at); toast(error ? 'erro: ' + error.message : 'salvo'); renderAcessos(); });
+  $$('#tabAcl [data-rm]').forEach(b => b.onclick = async () => { if(!confirm('Tirar o acesso de ' + b.dataset.rm + ' ao hub comercial? (o login continua existindo)')) return;
+    const {error} = await sb.from('com_acl_usuarios').delete().eq('email', b.dataset.rm); toast(error ? 'erro: ' + error.message : 'removido'); renderAcessos(); });
+  $('#tabNiveis').innerHTML = `<thead><tr><th>Nível</th>${PERMS.map(([k, l]) => `<th title="${esc(k)}" style="white-space:normal;min-width:110px">${esc(l)}</th>`).join('')}<th></th></tr></thead><tbody>` +
+    st.niveis.map(n => `<tr><td><b>${esc(n.rotulo)}</b><br><span class="muted" style="font-size:11px">${esc(n.nivel)} · ${lista.filter(u => u.nivel === n.nivel).length} pessoa(s)</span></td>
+      ${PERMS.map(([k]) => `<td style="text-align:center"><input type="checkbox" data-p="${k}" ${(n.permissoes || []).includes(k) ? 'checked' : ''}></td>`).join('')}<td><button class="btn sm" data-salva="${esc(n.nivel)}">salvar</button></td></tr>`).join('') + '</tbody>';
+  $$('#tabNiveis [data-salva]').forEach(b => b.onclick = async () => { const sel = [...b.closest('tr').querySelectorAll('input[data-p]:checked')].map(i => i.dataset.p);
+    const {error} = await sb.from('com_acl_niveis').update({permissoes:sel, atualizado_em:agora()}).eq('nivel', b.dataset.salva); toast(error ? 'erro: ' + error.message : 'permissões salvas'); });
+}
+$('#aclCriar').onchange = () => $('#aclSenha').classList.toggle('hide', !$('#aclCriar').checked);
+$('#formAcl').onsubmit = async e => {
+  e.preventDefault(); if(!st.admin) return;
+  const em = $('#aclEmail').value.trim().toLowerCase(), nome = $('#aclNome').value.trim(), nivel = $('#aclNivel').value, criar = $('#aclCriar').checked, senha = $('#aclSenha').value;
+  const msg = $('#aclMsg'); msg.textContent = '';
+  if(!em.includes('@')) return msg.textContent = 'Informe um e-mail válido.';
+  if(criar && senha.length < 8) return msg.textContent = 'A senha inicial precisa ter pelo menos 8 caracteres.';
+  $('#aclAdd').disabled = true;
+  try{
+    let aviso = '';
+    if(criar){
+      const {data, error} = await sb.functions.invoke('admin-users', {body:{email:em, senha, grupo:'geral'}});   // 'geral' = sem páginas no BB HUB
+      if(error) throw new Error('não consegui criar o login: ' + error.message);
+      if(data?.error){ if(/already|exist|já/i.test(data.error)) aviso = 'O login já existia (senha não foi alterada); só liberei o acesso.'; else throw new Error(data.error); }
+    }
+    const {error:e2} = await sb.from('com_acl_usuarios').upsert({email:em, nome:nome || null, nivel, ativo:true, criado_por:st.email, atualizado_em:agora()}); if(e2) throw e2;
+    msg.textContent = `✅ ${em} liberado como ${rotuloNivel(nivel)}. ${aviso || (criar ? 'Entra com este e-mail e a senha inicial em ' + location.origin + location.pathname : 'Entra com o login que já tem.')}`;
+    $('#formAcl').reset(); $('#aclSenha').classList.add('hide'); renderAcessos();
+  }catch(err){ msg.textContent = 'Erro: ' + (err.message || err); }
+  $('#aclAdd').disabled = false;
+};
+$('#nvCria').onclick = async () => {
+  const n = $('#nvNovo').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '_'), r = $('#nvRotulo').value.trim();
+  if(!n || !r) return toast('informe a chave e o nome do nível');
+  const {error} = await sb.from('com_acl_niveis').insert({nivel:n, rotulo:r, ordem:st.niveis.length + 1, permissoes:['ver_bringit']});
+  toast(error ? 'erro: ' + error.message : 'nível criado'); $('#nvNovo').value = ''; $('#nvRotulo').value = ''; renderAcessos();
+};
 
 /* ---------- util ---------- */
 function baixaCsv(nome, rows){
