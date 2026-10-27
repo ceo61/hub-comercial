@@ -78,6 +78,8 @@ header.top h1{font-size:16px;margin:0;font-weight:650}
 .card h2{margin:0 0 8px;font-size:14.5px}
 .card p.help{margin:0 0 10px;color:var(--muted);font-size:12.5px}
 .mapa{height:400px;border-radius:12px;border:1px solid var(--hair);margin-bottom:14px;background:var(--surface2)}
+html[data-tema="escuro"] .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.82) contrast(.9) saturate(.6)}
+.leaflet-container{background:var(--surface2)}
 .legenda{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin:-6px 0 12px}
 .legenda i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
 .tabela{width:100%;border-collapse:collapse;font-size:13px}
@@ -381,9 +383,9 @@ function mapa(id){
   st.mapas[id] = {m, tiles:null, layer:L.layerGroup().addTo(m)}; atualizaTiles(); return st.mapas[id];
 }
 function atualizaTiles(){
-  const dark = document.documentElement.dataset.tema === 'escuro';
-  for(const k in st.mapas){ const o = st.mapas[k]; if(o.tiles) o.m.removeLayer(o.tiles);
-    o.tiles = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png`, {attribution:'© OpenStreetMap · © CARTO', subdomains:'abcd', maxZoom:19}).addTo(o.m); }
+  // OpenStreetMap (sem chave). No tema escuro o CSS inverte as cores do fundo (.leaflet-tile-pane).
+  for(const k in st.mapas){ const o = st.mapas[k]; if(o.tiles) continue;
+    o.tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>', maxZoom:19}).addTo(o.m); }
 }
 function plota(id, pontos){
   const o = mapa(id); o.layer.clearLayers(); const b = [];
