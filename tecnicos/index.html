@@ -194,13 +194,15 @@ html[data-tema="escuro"] .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) 
             <option value="autorizado">autorizado (no site)</option><option value="sem_interesse">sem interesse</option><option value="recusado">recusado</option>
           </select>
           <select id="nqUn"><option value="">BBDI e BB Baterias</option><option value="001">compra na BBDI (001)</option><option value="002">compra na BB Baterias (002)</option></select>
-          <label><input type="checkbox" id="nqAtivos" checked> só ativos (compra nos últimos 24 meses)</label>
+          <select id="nqMin" title="régua: mínimo de peças compradas nos últimos 12 meses"><option value="0">qualquer volume</option><option value="5">≥ 5 peças em 12 m</option><option value="10" selected>≥ 10 peças em 12 m</option><option value="50">≥ 50 peças em 12 m</option><option value="100">≥ 100 peças em 12 m</option></select>
+          <select id="nqClass"><option value="">qualquer classificação</option><option value="assist">só classificadas assistência/revenda</option><option value="semgrandes" selected>esconder distribuidor e corporativo</option></select>
+          <label><input type="checkbox" id="nqAtivos" checked> só ativas (compra nos últimos 24 meses)</label>
           <label><input type="checkbox" id="nqMapa" checked> mapa</label>
           <label><input type="checkbox" id="nqBringit" checked> mostrar bringIT no mapa</label>
           <div class="hspacer"></div>
           <button class="btn sec sm" id="nqCsv">⬇ CSV</button>
         </div>
-        <div class="legenda"><span><i style="background:var(--ch1)"></i>nossa revenda/assistência (candidata)</span><span><i style="background:var(--good)"></i>autorizada (já no site)</span><span><i style="background:var(--ch4)"></i>contatada</span><span><i style="background:var(--ser)"></i>parceiro da bringIT</span><span class="muted">· ponto pequeno = posição aproximada (centro da cidade)</span></div>
+        <div class="legenda"><span><i style="background:var(--ch1)"></i>nossa revenda/assistência (candidata)</span><span><i style="background:var(--good)"></i>autorizada (já no site)</span><span><i style="background:var(--ch4)"></i>contatada</span><span><i style="background:var(--ser)"></i>parceiro da bringIT</span><span class="muted">· tamanho do ponto = peças compradas em 12 meses · ponto mínimo = posição aproximada (centro da cidade)</span></div>
         <div id="mapaNossas" class="mapa"></div>
         <div class="tabwrap"><table class="tabela" id="tabNossas"></table></div>
       </section>
@@ -507,44 +509,54 @@ async function painelBringit(id){
 }
 
 /* ===================== 2. nossas revendas ===================== */
+const GRANDES = ['DISTRIBUIDOR', 'CORPORATIVO'];
+const porMes = c => (c.nfs_12m || 0) / 12;
 function candFiltrados(){
   const q = normCid($('#nqBusca').value), s = $('#nqStatus').value, un = $('#nqUn').value, at = $('#nqAtivos').checked;
+  const min = Number($('#nqMin').value || 0), cl = $('#nqClass').value;
   return st.cand.filter(c => (!at || c.ativo_24m || c.status === 'autorizado') && (!s || c.status === s) && (!un || (c.unidades || '').includes(un))
-    && (!q || normCid([c.nome_fantasia, c.razao_social, c.cnpj, c.telefone, c.cidade, c.email].join(' ')).includes(q)));
+    && ((c.qtd_12m || 0) >= min || c.status === 'autorizado')
+    && (!cl || (cl === 'assist' ? !!c.classificado : !GRANDES.includes((c.grupo_cliente || '').toUpperCase())))
+    && (!q || normCid([c.nome_fantasia, c.razao_social, c.cnpj, c.telefone, c.cidade, c.email].join(' ')).includes(q)))
+    .sort((a, b) => (b.qtd_12m || 0) - (a.qtd_12m || 0) || (b.receita || 0) - (a.receita || 0));
 }
 async function renderNossas(){
   if(st.candCarregada !== st.candCidade){ $('#tabNossas').innerHTML = '<tbody><tr><td class="muted">carregando…</td></tr></tbody>'; try{ await carregaCand(); }catch(e){ toast('erro: ' + e.message); st.cand = []; } }
   const rows = candFiltrados();
   const k = (f) => rows.filter(f).length;
+  const minSel = Number($('#nqMin').value || 0), pecas = rows.reduce((s, c) => s + (c.qtd_12m || 0), 0), compras = rows.reduce((s, c) => s + (c.nfs_12m || 0), 0);
   $('#kpiNossas').innerHTML = [
-    ['Candidatas (filtro)', fNum(rows.length), `${fNum(st.cand.length)} na seleção · ${fNum(st.resumo.candidatos || 0)} no Brasil`],
-    ['Ativas 24m', fNum(k(c => c.ativo_24m)), 'compraram desde out/24'],
-    ['Compram na BBDI', fNum(k(c => (c.unidades || '').includes('001'))), 'revenda/assistência (A1_222)'],
-    ['Compram na BB Baterias', fNum(k(c => (c.unidades || '').includes('002'))), 'a preço de consumidor'],
+    ['Candidatas (filtro)', fNum(rows.length), `${fNum(st.cand.length)} na cidade · régua ${minSel ? '≥ ' + minSel + ' peças' : 'sem mínimo'}`],
+    ['Peças em 12 m', fNum(Math.round(pecas)), `${fNum(compras)} compras · ${rows.length ? (compras / rows.length / 12).toFixed(1) : '0'} compras/mês por candidata`],
+    ['Classificadas (A1_222)', fNum(k(c => c.classificado)), `${fNum(k(c => !c.classificado))} sem classificação de assistência`],
+    ['Compram na BBDI', fNum(k(c => (c.unidades_12m || c.unidades || '').includes('001'))), 'nos últimos 12 meses'],
+    ['Compram na BB Baterias', fNum(k(c => (c.unidades_12m || c.unidades || '').includes('002'))), 'a preço de consumidor'],
     ['Contatadas', fNum(k(c => c.status === 'contatado')), 'anotado no HUB'],
     ['Autorizadas (no site)', fNum(k(c => c.status === 'autorizado')), 'já em tecnicos'],
-    ['Com posição no mapa', fNum(k(c => c.lat != null)), `${fNum(k(c => c.geo_fonte === 'cep'))} pelo CEP`],
+    ['Posição pelo CEP', fNum(k(c => c.geo_fonte === 'cep')), `${fNum(k(c => c.geo_fonte === 'cidade'))} só no centro da cidade`],
   ].map(([l, v, s]) => `<div class="kpi"><div class="lab">${l}</div><div class="val">${v}</div><div class="sub">${s}</div></div>`).join('');
   $('#mapaNossas').classList.toggle('hide', !$('#nqMapa').checked);
   if($('#nqMapa').checked){
-    const pts = rows.map(c => ({lat:c.lat, lng:c.lng, r:c.geo_fonte === 'cidade' ? 3 : 6, cor:c.status === 'autorizado' ? '#1a8f1a' : c.status === 'contatado' ? '#7c5cd6' : '#2a78d6',
-      rotulo:`${esc(c.nome_fantasia || c.razao_social)} · ${esc(c.cidade || '')} · ${esc(c.unidades)} · última ${fData(c.ultima_compra)}${c.geo_fonte === 'cidade' ? ' · posição aproximada' : ''}`, onclick:() => painelCand(c.cnpj)}));
+    const pts = rows.map(c => ({lat:c.lat, lng:c.lng, r:c.geo_fonte === 'cidade' ? 2.5 : Math.min(15, 4 + Math.log2(1 + (c.qtd_12m || 0)) * 1.3),
+      cor:c.status === 'autorizado' ? '#1a8f1a' : c.status === 'contatado' ? '#7c5cd6' : '#2a78d6',
+      rotulo:`${esc(c.nome_fantasia || c.razao_social)} · ${esc(c.cidade || '')} · ${fNum(Math.round(c.qtd_12m || 0))} peças/12 m · ${porMes(c).toFixed(1)} compras/mês · última ${fData(c.ultima_compra)}${c.geo_fonte === 'cidade' ? ' · posição aproximada' : ''}`, onclick:() => painelCand(c.cnpj)}));
     if($('#nqBringit').checked){ const [cid, uf] = (st.candCidade + '/').split('/'); st.bringit.filter(p => p.presente && (st.candCidade === 'TODAS' || normCid(p.cidade) === cid || normCid(p.praca) === cid))
       .forEach(p => pts.push({lat:p.lat, lng:p.lng, r:5, cor:'#c25a2e', rotulo:`bringIT #${p.bringit_id} ${esc(p.nome)} · ★ ${p.rating ?? '—'}`, onclick:() => painelBringit(p.bringit_id)})); }
     plota('mapaNossas', pts);
   }
   const ST = {candidato:['', 'candidata'], contatado:['acc', 'contatada'], autorizado:['good', 'autorizada'], sem_interesse:['crit', 'sem interesse'], recusado:['crit', 'recusada']};
-  $('#tabNossas').innerHTML = `<thead><tr><th>Nome fantasia</th><th>Razão social</th><th>Cidade</th><th>Compra em</th><th>Última compra</th><th class="num">NFs</th><th class="num">Receita</th><th>Telefone</th><th>Status</th><th>Mapa</th><th>Obs.</th></tr></thead><tbody>` +
+  $('#tabNossas').innerHTML = `<thead><tr><th>Nome fantasia</th><th>Razão social</th><th>Cidade</th><th>Compra em</th><th class="num" title="peças compradas nos últimos 12 meses">Peças 12 m</th><th class="num" title="compras (NFs) nos últimos 12 meses ÷ 12">Compras/mês</th><th class="num" title="meses com pelo menos uma compra nos últimos 12">Meses c/ compra</th><th class="num">Receita 12 m</th><th>Última compra</th><th>Telefone</th><th>Status</th><th>Mapa</th><th>Obs.</th></tr></thead><tbody>` +
     rows.slice(0, 1500).map(c => `<tr class="lin" data-id="${esc(c.cnpj)}"><td><b>${esc(c.nome_fantasia || '—')}</b></td><td class="muted">${esc(c.razao_social || '')}</td><td>${esc(c.cidade || '')}<span class="muted"> ${esc(c.uf || '')}</span></td>
-      <td>${esc(c.unidades || '')}${c.grupo_cliente ? `<br><span class="muted" style="font-size:11px">${esc(c.grupo_cliente)}</span>` : ''}</td><td>${fData(c.ultima_compra)}${c.ativo_24m ? '' : ' <span class="pill">inativa</span>'}</td>
-      <td class="num">${fNum(c.nfs)}</td><td class="num">${fBRL(c.receita)}</td><td>${telLink(c.ddd && c.telefone ? `(${c.ddd}) ${c.telefone}` : c.telefone, c.telefone_e164)}</td>
+      <td>${esc(c.unidades_12m || c.unidades || '')}${c.grupo_cliente ? `<br><span class="muted" style="font-size:11px">${esc(c.grupo_cliente)}</span>` : ''}${c.classificado ? '' : '<br><span class="pill" style="font-size:10px">não classificada</span>'}</td>
+      <td class="num"><b>${fNum(Math.round(c.qtd_12m || 0))}</b></td><td class="num">${porMes(c).toFixed(1)}</td><td class="num">${c.meses_12m ?? 0}/12</td><td class="num">${fBRL(c.receita_12m)}</td>
+      <td>${fData(c.ultima_compra)}${c.ativo_24m ? '' : ' <span class="pill">inativa</span>'}</td><td>${telLink(c.ddd && c.telefone ? `(${c.ddd}) ${c.telefone}` : c.telefone, c.telefone_e164)}</td>
       <td><span class="pill ${(ST[c.status] || ['', c.status])[0]}">${esc((ST[c.status] || ['', c.status])[1])}</span></td>
-      <td>${c.lat == null ? '<span class="pill warn">sem posição</span>' : c.geo_fonte === 'cidade' ? '<span class="muted">aprox.</span>' : 'CEP'}</td><td class="muted">${esc((c.observacao || '').slice(0, 50))}</td></tr>`).join('') + '</tbody>' + (rows.length > 1500 ? `<tfoot><tr><td colspan="11" class="muted">mostrando 1.500 de ${fNum(rows.length)} — refine o filtro</td></tr></tfoot>` : '');
+      <td>${c.lat == null ? '<span class="pill warn">sem posição</span>' : c.geo_fonte === 'cidade' ? '<span class="muted">aprox.</span>' : 'CEP'}</td><td class="muted">${esc((c.observacao || '').slice(0, 50))}</td></tr>`).join('') + '</tbody>' + (rows.length > 1500 ? `<tfoot><tr><td colspan="13" class="muted">mostrando 1.500 de ${fNum(rows.length)} — refine o filtro</td></tr></tfoot>` : '');
   $$('#tabNossas tr.lin').forEach(tr => tr.onclick = () => painelCand(tr.dataset.id));
 }
 $('#nqCidade').addEventListener('change', () => { st.candCidade = $('#nqCidade').value; renderNossas(); });
-['nqBusca', 'nqStatus', 'nqUn', 'nqAtivos', 'nqMapa', 'nqBringit'].forEach(id => $('#' + id).addEventListener('input', renderNossas));
-$('#nqCsv').onclick = () => pode('exportar') && baixaCsv('nossas_revendas.csv', candFiltrados().map(c => ({cnpj:c.cnpj, nome_fantasia:c.nome_fantasia, razao_social:c.razao_social, cidade:c.cidade, uf:c.uf, cep:c.cep, unidades:c.unidades, grupo:c.grupo_cliente, cod_001:c.cod_001, cod_002:c.cod_002, telefone:c.ddd ? `(${c.ddd}) ${c.telefone}` : c.telefone, email:c.email, primeira_compra:c.primeira_compra, ultima_compra:c.ultima_compra, nfs:c.nfs, receita:c.receita, status:c.status, ligado_em:c.ligado_em, observacao:c.observacao})));
+['nqBusca', 'nqStatus', 'nqUn', 'nqMin', 'nqClass', 'nqAtivos', 'nqMapa', 'nqBringit'].forEach(id => $('#' + id).addEventListener('input', renderNossas));
+$('#nqCsv').onclick = () => pode('exportar') && baixaCsv('nossas_revendas.csv', candFiltrados().map(c => ({cnpj:c.cnpj, nome_fantasia:c.nome_fantasia, razao_social:c.razao_social, cidade:c.cidade, uf:c.uf, cep:c.cep, unidades_12m:c.unidades_12m, classificada:c.classificado ? 'sim' : 'não', grupo:c.grupo_cliente, cod_001:c.cod_001, cod_002:c.cod_002, telefone:c.ddd ? `(${c.ddd}) ${c.telefone}` : c.telefone, email:c.email, pecas_12m:c.qtd_12m, compras_12m:c.nfs_12m, compras_por_mes:porMes(c).toFixed(2), meses_com_compra:c.meses_12m, receita_12m:c.receita_12m, primeira_compra:c.primeira_compra, ultima_compra:c.ultima_compra, status:c.status, ligado_em:c.ligado_em, observacao:c.observacao, posicao:c.geo_fonte})));
 
 async function painelCand(cnpj){
   const c = st.cand.find(x => x.cnpj === cnpj); if(!c) return;
@@ -552,7 +564,8 @@ async function painelCand(cnpj){
   abrePainel(`<span class="eyebrow">${cnpjFmt(c.cnpj)} · ${esc(c.unidades || '')} ${c.grupo_cliente ? '· ' + esc(c.grupo_cliente) : ''}</span><h2>${esc(c.nome_fantasia || c.razao_social)}</h2><div class="muted" style="font-size:12.5px">${esc(c.razao_social || '')}</div>
     <div class="kv" style="margin-top:10px"><b>Cidade</b><span>${esc(c.cidade || '—')} ${esc(c.uf || '')} · CEP ${esc(c.cep || '—')}</span><b>Telefone</b><span>${telLink(c.ddd && c.telefone ? `(${c.ddd}) ${c.telefone}` : c.telefone, c.telefone_e164)}</span>
       <b>E-mail</b><span>${c.email ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '—'}</span><b>Códigos</b><span>BBDI ${esc(c.cod_001 || '—')} · BB Baterias ${esc(c.cod_002 || '—')}</span>
-      <b>Compras</b><span>${fNum(c.nfs)} NFs · ${fBRL(c.receita)} · de ${fData(c.primeira_compra)} a ${fData(c.ultima_compra)} ${c.ativo_24m ? '<span class="pill good">ativa</span>' : '<span class="pill">inativa</span>'}</span>
+      <b>Últimos 12 meses</b><span><b>${fNum(Math.round(c.qtd_12m || 0))} peças</b> · ${fNum(c.nfs_12m || 0)} compras (${porMes(c).toFixed(1)}/mês) · comprou em ${c.meses_12m ?? 0} de 12 meses · ${fBRL(c.receita_12m)}${c.classificado ? '' : ' · <span class="pill">não classificada como assistência</span>'}</span>
+      <b>Histórico</b><span>${c.nfs != null ? `${fNum(c.nfs)} NFs · ${fBRL(c.receita)} · ` : ''}de ${fData(c.primeira_compra)} a ${fData(c.ultima_compra)} ${c.ativo_24m ? '<span class="pill good">ativa</span>' : '<span class="pill">inativa</span>'}</span>
       <b>Posição</b><span>${c.lat == null ? '<span class="pill warn">sem coordenada</span>' : `${c.lat.toFixed(5)}, ${c.lng.toFixed(5)} <span class="muted">(${esc(c.geo_fonte || '')})</span>`} ${c.cep && pode('anotar') ? ' <button class="btn sec sm" data-act="geo">📍 geocodificar pelo CEP</button>' : ''}</span>
       <b>No site</b><span>${tec ? `técnico #${tec.id} ${tec.ativo ? '<span class="pill good">ativo</span>' : '<span class="pill">inativo</span>'} ${pode('ver_cadastro') ? '<button class="btn sec sm" data-act="verTec">abrir cadastro</button>' : ''}` : '<span class="muted">ainda não</span>'}</span></div>
     <div class="sec"><h3>Ações</h3><div class="acoes">
