@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="pt-BR" data-tema="claro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Técnicos Indicados — Hub Comercial</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔧</text></svg>">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<style>
+:root{
+  --page:#f6f7f6; --surface:#fcfcfd; --surface2:#f1f2f1; --ink:#0c0e12; --ink2:#565b63;
+  --muted:#8a8f98; --hair:#e3e4e1; --accent:#2456c9; --accent-soft:#e8eefc;
+  --crit:#d03b3b; --crit-soft:#faecec; --ser:#c25a2e; --ser-soft:#fbeee7;
+  --warn:#9a6c00; --warn-soft:#fdf3d9; --good:#006300; --good-soft:#e7f3e7;
+  --ch1:#2a78d6; --ch2:#1baf7a; --ch3:#eda100; --ch4:#7c5cd6; --shadow:0 12px 40px rgba(12,14,18,.14);
+}
+html[data-tema="escuro"]{
+  --page:#0d0e10; --surface:#17181b; --surface2:#1e2024; --ink:#f3f4f6; --ink2:#b8bcc3;
+  --muted:#8a8f98; --hair:#2a2c30; --accent:#5c8bf0; --accent-soft:#1b2740;
+  --crit:#e05252; --crit-soft:#3a1d1d; --ser:#e07a45; --ser-soft:#382217;
+  --warn:#e8b93a; --warn-soft:#332a12; --good:#3dbb3d; --good-soft:#162c16;
+  --ch1:#3987e5; --ch2:#199e70; --ch3:#c98500; --ch4:#9d84e8; --shadow:0 12px 40px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{background:var(--page);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--hair);border-radius:8px;padding:8px 12px}
+textarea{width:100%;min-height:64px;resize:vertical}
+input::placeholder{color:var(--muted)}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.hide{display:none!important}
+a{color:var(--accent)}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.login-card{background:var(--surface);border:1px solid var(--hair);border-radius:16px;padding:34px 32px;width:min(380px,94vw);display:grid;gap:14px}
+.login-card h1{margin:4px 0 0;font-size:22px}
+.login-card p{margin:0;color:var(--ink2);font-size:13px}
+.login-card input{width:100%}
+.btn{background:var(--accent);color:#fff;border-radius:9px;padding:8px 14px;font-weight:600;white-space:nowrap}
+.btn:disabled{opacity:.6;cursor:wait}
+.btn.sec{background:var(--surface2);color:var(--ink)}
+.btn.ok{background:var(--good)}
+.btn.warn{background:var(--ser)}
+.btn.sm{padding:4px 10px;font-size:12px}
+.login-err{color:var(--crit);font-size:13px;min-height:18px}
+.shell{display:grid;grid-template-columns:230px 1fr;min-height:100vh}
+aside.nav{background:var(--surface);border-right:1px solid var(--hair);padding:16px 10px;display:flex;flex-direction:column;gap:2px;position:sticky;top:0;height:100vh}
+.mark{display:flex;align-items:center;gap:10px;padding:6px 10px 16px}
+.mark .ico{font-size:22px}
+.mark .name{font-size:15px;font-weight:700;line-height:1.1}
+.mark .name small{display:block;font-size:10.5px;font-weight:500;color:var(--muted);margin-top:3px}
+.navsec{font-size:10.5px;font-weight:600;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);padding:12px 12px 4px}
+.nav a{display:flex;align-items:center;gap:9px;padding:9px 12px;border-radius:9px;color:var(--ink2);text-decoration:none;font-size:13.5px}
+.nav a:hover{background:var(--surface2);color:var(--ink)}
+.nav a.ativo{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.nav .spacer{flex:1}
+.nav button{text-align:left;padding:9px 12px;border-radius:9px;color:var(--ink2);font-size:13.5px}
+.nav button:hover{background:var(--surface2);color:var(--ink)}
+main{min-width:0;display:flex;flex-direction:column}
+header.top{display:flex;align-items:center;gap:12px;padding:12px 22px;border-bottom:1px solid var(--hair);background:var(--surface);position:sticky;top:0;z-index:30;flex-wrap:wrap}
+header.top h1{font-size:16px;margin:0;font-weight:650}
+.hspacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;padding:5px 11px;border-radius:99px;border:1px solid var(--hair);background:var(--surface2);white-space:nowrap}
+.chip .dot{width:9px;height:9px;border-radius:50%;flex:none;background:var(--muted)}
+.content{padding:18px 22px 60px;max-width:1380px;width:100%;margin:0 auto}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:2px 0 14px}
+.kpi{background:var(--surface);border:1px solid var(--hair);border-radius:10px;padding:12px 14px;text-align:left}
+.kpi.clk{cursor:pointer}
+.kpi.clk:hover,.kpi.active{border-color:var(--accent)}
+.kpi .lab{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2)}
+.kpi .val{font-size:24px;font-weight:650;margin-top:3px;font-variant-numeric:tabular-nums}
+.kpi .sub{font-size:12px;color:var(--muted)}
+.toolbar{display:flex;gap:8px;align-items:center;margin:6px 0 12px;flex-wrap:wrap}
+.toolbar input[type=text]{min-width:220px}
+.toolbar label{display:inline-flex;align-items:center;gap:5px;font-size:13px;color:var(--ink2)}
+.card{background:var(--surface);border:1px solid var(--hair);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.card h2{margin:0 0 8px;font-size:14.5px}
+.card p.help{margin:0 0 10px;color:var(--muted);font-size:12.5px}
+.mapa{height:400px;border-radius:12px;border:1px solid var(--hair);margin-bottom:14px;background:var(--surface2)}
+.legenda{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink2);margin:-6px 0 12px}
+.legenda i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.tabela{width:100%;border-collapse:collapse;font-size:13px}
+.tabela th{position:sticky;top:0;background:var(--surface);text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink2);padding:8px 8px;border-bottom:1px solid var(--hair);white-space:nowrap}
+.tabela th[data-k]{cursor:pointer}
+.tabela td{padding:7px 8px;border-bottom:1px solid var(--hair);vertical-align:top}
+.tabela tr.lin{cursor:pointer}
+.tabela tr.lin:hover{background:var(--surface2)}
+.tabela .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tabwrap{overflow:auto;max-height:70vh;border:1px solid var(--hair);border-radius:12px;background:var(--surface)}
+.pill{display:inline-block;padding:2px 8px;border-radius:99px;font-size:11.5px;font-weight:600;white-space:nowrap;background:var(--surface2);color:var(--ink2)}
+.pill.good{background:var(--good-soft);color:var(--good)}
+.pill.warn{background:var(--warn-soft);color:var(--warn)}
+.pill.crit{background:var(--crit-soft);color:var(--crit)}
+.pill.ser{background:var(--ser-soft);color:var(--ser)}
+.pill.acc{background:var(--accent-soft);color:var(--accent)}
+.muted{color:var(--muted)}
+.painel{position:fixed;top:0;right:0;height:100vh;width:min(520px,96vw);background:var(--surface);border-left:1px solid var(--hair);box-shadow:var(--shadow);z-index:50;overflow:auto}
+.painel-in{padding:18px 20px 40px}
+.painel h2{margin:0 0 2px;font-size:17px;padding-right:36px}
+.painel .fechar{position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:8px;border:1px solid var(--hair);display:grid;place-items:center}
+.painel .sec{margin-top:16px;padding-top:12px;border-top:1px solid var(--hair)}
+.painel .sec h3{margin:0 0 8px;font-size:12px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink2)}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:4px 10px;font-size:13px}
+.kv b{color:var(--ink2);font-weight:500}
+.acoes{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.form label{display:grid;gap:3px;font-size:12px;color:var(--ink2)}
+.form label.full{grid-column:1/-1}
+.form input,.form select{width:100%}
+.tl{list-style:none;padding:0;margin:0;font-size:12.5px}
+.tl li{padding:6px 0;border-bottom:1px dashed var(--hair)}
+.tl .q{color:var(--muted);font-size:11.5px}
+.aviso{padding:10px 14px;border-radius:10px;font-size:13px;margin-bottom:12px}
+.aviso.ambar{background:var(--warn-soft);color:var(--warn)}
+.aviso.vermelho{background:var(--crit-soft);color:var(--crit)}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--page);padding:9px 16px;border-radius:99px;font-size:13px;z-index:99;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+.preview{border:1px solid var(--hair);border-radius:12px;padding:12px;background:var(--page)}
+.preview .pv-nome{font-weight:650}
+.preview .pv-sub{font-size:12px;color:var(--ink2)}
+.preview .pv-btn{display:inline-block;margin-top:8px;background:#25d366;color:#fff;border-radius:8px;padding:6px 12px;font-weight:600;font-size:12.5px}
+@media (max-width:900px){.shell{grid-template-columns:1fr}aside.nav{position:static;height:auto;flex-direction:row;flex-wrap:wrap}.nav .spacer{display:none}.navsec{display:none}.mapa{height:300px}}
+</style>
+</head>
+<body>
+<div id="telaLogin" class="login-wrap">
+  <form id="formLogin" class="login-card">
+    <span class="eyebrow">Hub Comercial</span>
+    <h1>🔧 Técnicos Indicados</h1>
+    <p>Entre com seu e-mail e senha. Parceiros da bringIT, nossas revendas e o cadastro que vai para o site.</p>
+    <input id="loginEmail" type="email" placeholder="e-mail" autocomplete="username" required>
+    <input id="loginSenha" type="password" placeholder="senha" autocomplete="current-password" required>
+    <button class="btn" id="btnEntrar" type="submit">Entrar</button>
+    <div class="login-err" id="loginErr"></div>
+  </form>
+</div>
+
+<div id="telaApp" class="shell hide">
+  <aside class="nav" id="nav">
+    <div class="mark"><span class="ico">🔧</span><div class="name">Técnicos Indicados<small>Hub Comercial · esboço v1</small></div></div>
+    <div class="navsec">Partes do HUB</div>
+    <a href="#bringit" data-pg="bringit">🥊 1 · Parceiros da bringIT</a>
+    <a href="#nossas" data-pg="nossas">🏪 2 · Nossas revendas</a>
+    <a href="#cadastro" data-pg="cadastro">✅ 3 · Cadastro (site)</a>
+    <div class="spacer"></div>
+    <button id="btnTema">🌙 Tema escuro</button>
+    <button id="btnSair">Sair</button>
+  </aside>
+  <main>
+    <header class="top">
+      <h1 id="titulo">Parceiros da bringIT</h1>
+      <div class="hspacer"></div>
+      <span class="chip" id="chipRaspagem"><span class="dot"></span><span>raspagem bringIT: —</span></span>
+      <span class="chip" id="chipTec"><span class="dot"></span><span>técnicos no site: —</span></span>
+      <span class="eyebrow" id="quem"></span>
+    </header>
+    <div class="content">
+      <div id="semAcesso" class="aviso vermelho hide">Seu usuário não tem acesso a esta página. Peça ao administrador para liberar a página <b>tecnicos</b> no grupo.</div>
+      <div id="avisoVazio" class="aviso ambar hide"></div>
+
+      <section id="pg-bringit" class="pg">
+        <div class="kpis" id="kpiBringit"></div>
+        <div class="toolbar">
+          <input type="text" id="bqBusca" placeholder="buscar nome, telefone, cidade…">
+          <select id="bqPraca"><option value="">todas as praças</option></select>
+          <select id="bqSit">
+            <option value="">todas as situações</option>
+            <option value="cliente">já é nosso cliente (confirmado)</option>
+            <option value="pendente">provável — revisar</option>
+            <option value="nao">não encontrado na base</option>
+          </select>
+          <select id="bqLig"><option value="">ligados e não ligados</option><option value="sim">já ligamos</option><option value="nao">ainda não ligamos</option></select>
+          <label><input type="checkbox" id="bqMapa" checked> mapa</label>
+          <label><input type="checkbox" id="bqSumidos"> incluir quem saiu da lista deles</label>
+          <div class="hspacer"></div>
+          <button class="btn sec sm" id="bqCsv">⬇ CSV</button>
+        </div>
+        <div class="legenda"><span><i style="background:var(--good)"></i>já é nosso cliente</span><span><i style="background:var(--ch3)"></i>provável, revisar</span><span><i style="background:#8a8f98"></i>não está na base</span><span><i style="background:transparent;border:2px solid var(--accent)"></i>já ligamos</span></div>
+        <div id="mapaBringit" class="mapa"></div>
+        <div class="tabwrap"><table class="tabela" id="tabBringit"></table></div>
+      </section>
+
+      <section id="pg-nossas" class="pg hide">
+        <div class="kpis" id="kpiNossas"></div>
+        <div class="toolbar">
+          <select id="nqCidade"></select>
+          <input type="text" id="nqBusca" placeholder="buscar nome, CNPJ, telefone…">
+          <select id="nqStatus">
+            <option value="">todos os status</option><option value="candidato">candidato</option><option value="contatado">contatado</option>
+            <option value="autorizado">autorizado (no site)</option><option value="sem_interesse">sem interesse</option><option value="recusado">recusado</option>
+          </select>
+          <select id="nqUn"><option value="">BBDI e BB Baterias</option><option value="001">compra na BBDI (001)</option><option value="002">compra na BB Baterias (002)</option></select>
+          <label><input type="checkbox" id="nqAtivos" checked> só ativos (compra nos últimos 24 meses)</label>
+          <label><input type="checkbox" id="nqMapa" checked> mapa</label>
+          <label><input type="checkbox" id="nqBringit" checked> mostrar bringIT no mapa</label>
+          <div class="hspacer"></div>
+          <button class="btn sec sm" id="nqCsv">⬇ CSV</button>
+        </div>
+        <div class="legenda"><span><i style="background:var(--ch1)"></i>nossa revenda/assistência (candidata)</span><span><i style="background:var(--good)"></i>autorizada (já no site)</span><span><i style="background:var(--ch4)"></i>contatada</span><span><i style="background:var(--ser)"></i>parceiro da bringIT</span><span class="muted">· ponto pequeno = posição aproximada (centro da cidade)</span></div>
+        <div id="mapaNossas" class="mapa"></div>
+        <div class="tabwrap"><table class="tabela" id="tabNossas"></table></div>
+      </section>
+
+      <section id="pg-cadastro" class="pg hide">
+        <div class="kpis" id="kpiCad"></div>
+        <div class="card">
+          <h2>Técnicos em produção (tabela <code>tecnicos</code>) — é o que o modal do site mostra</h2>
+          <p class="help">Só os <b>ativos</b> aparecem no site. Campos usados no modal: nome, cidade/bairro, distância (lat/lng), nota e nº de avaliações, telefone/WhatsApp, Parceiro TOP (destaque), parceiro desde, serviços concluídos.</p>
+          <div class="toolbar">
+            <input type="text" id="cqBusca" placeholder="buscar técnico…">
+            <label><input type="checkbox" id="cqAtivos" checked> só ativos</label>
+            <div class="hspacer"></div>
+            <button class="btn sm" id="cqNovo">➕ Novo técnico (manual)</button>
+          </div>
+          <div class="tabwrap"><table class="tabela" id="tabTec"></table></div>
+        </div>
+        <div class="card">
+          <h2>Cadastros recebidos pelo formulário do site ("É técnico e quer aparecer aqui?")</h2>
+          <p class="help">Chegam na tabela <code>tecnicos_cadastro</code>. Aprovar cria o técnico (geocodifica pelo CEP) e o liga ao cadastro.</p>
+          <div class="tabwrap"><table class="tabela" id="tabCad"></table></div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <aside id="painel" class="painel hide"><div class="painel-in"><button class="fechar" id="fecharPainel" title="fechar">✕</button><div id="painelCorpo"></div></div></aside>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+<script type="module">
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const SUPA_URL = "https://zmplnwzsieccgfpdryvi.supabase.co";
+const SUPA_KEY = "sb_publishable_wyrwKsdftifpQ5YV9z7rng_s6hTzcx5";
+const sb = createClient(SUPA_URL, SUPA_KEY);
+const ADMIN = 'ceo@bestbattery.com.br';
+const PRACAS_INICIAIS = ['SAO PAULO/SP','RIO DE JANEIRO/RJ','PORTO ALEGRE/RS','BELO HORIZONTE/MG','CURITIBA/PR','BRASILIA/DF','JOINVILLE/SC'];
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fData = d => { if(!d) return '—'; const x = new Date(d.length > 10 ? d : d + 'T12:00:00'); return isNaN(x) ? '—' : x.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit', year:'2-digit'}); };
+const fDataHora = d => { if(!d) return '—'; const x = new Date(d); return isNaN(x) ? '—' : x.toLocaleString('pt-BR', {day:'2-digit', month:'2-digit', year:'2-digit', hour:'2-digit', minute:'2-digit'}); };
+const fBRL = v => v == null ? '—' : Number(v).toLocaleString('pt-BR', {style:'currency', currency:'BRL', maximumFractionDigits:0});
+const fNum = v => v == null ? '—' : Number(v).toLocaleString('pt-BR');
+const hoje = () => new Date().toISOString().slice(0, 10);
+const agora = () => new Date().toISOString();
+const soDig = s => String(s || '').replace(/\D/g, '');
+const wa = e => { const d = soDig(e); return d ? 'https://wa.me/' + (d.startsWith('55') ? d : '55' + d) : null; };
+const telLink = (tel, e164) => { const u = wa(e164 || tel); return u ? `<a href="${u}" target="_blank" rel="noopener" title="abrir WhatsApp">${esc(tel || e164)}</a>` : esc(tel || '—'); };
+const cnpjFmt = c => { c = soDig(c); if(c.length === 14) return c.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5'); if(c.length === 11) return 'CPF ' + c.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4'); return c; };
+const normCid = s => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
+const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); setTimeout(() => t.classList.remove('on'), 2200); };
+
+const st = { email:null, admin:false, acl:null, carregado:false, pg:'bringit', resumo:{}, bringit:[], matches:[], cand:[], candCidade:'SAO PAULO/SP',
+             candCarregada:null, tecnicos:[], cadastros:[], mapas:{}, ordem:{} };
+
+/* ---------- tema ---------- */
+function aplicaTema(t){ document.documentElement.dataset.tema = t; $('#btnTema').textContent = t === 'escuro' ? '☀️ Tema claro' : '🌙 Tema escuro'; try{ localStorage.setItem('bbhub-tema', t); }catch(e){} atualizaTiles(); }
+let temaIni = 'claro'; try{ temaIni = localStorage.getItem('bbhub-tema') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'escuro' : 'claro'); }catch(e){}
+aplicaTema(temaIni);
+$('#btnTema').onclick = () => aplicaTema(document.documentElement.dataset.tema === 'escuro' ? 'claro' : 'escuro');
+
+/* ---------- login ---------- */
+$('#formLogin').onsubmit = async e => {
+  e.preventDefault(); $('#btnEntrar').disabled = true; $('#loginErr').textContent = '';
+  const {error} = await sb.auth.signInWithPassword({email: $('#loginEmail').value.trim(), password: $('#loginSenha').value});
+  $('#btnEntrar').disabled = false; if(error) $('#loginErr').textContent = 'E-mail ou senha inválidos.';
+};
+$('#btnSair').onclick = async () => { await sb.auth.signOut(); location.reload(); };
+sb.auth.onAuthStateChange((_ev, sess) => {
+  if(sess){ $('#telaLogin').classList.add('hide'); $('#telaApp').classList.remove('hide'); if(!st.carregado) carregaTudo(); }
+  else { $('#telaLogin').classList.remove('hide'); $('#telaApp').classList.add('hide'); }
+});
+
+/* ---------- acesso (mesma regra do BB HUB: admin e usuário sem grupo veem tudo) ---------- */
+async function carregaAcl(){
+  const {data:{user}} = await sb.auth.getUser();
+  st.email = (user?.email || '').toLowerCase(); st.admin = st.email === ADMIN; st.acl = null;
+  if(!st.admin){
+    const {data:u} = await sb.from('acl_usuarios').select('grupo').eq('email', st.email).maybeSingle();
+    if(u?.grupo){ const {data:g} = await sb.from('acl_grupos').select('paginas').eq('grupo', u.grupo).maybeSingle(); if(g) st.acl = new Set(g.paginas || []); }
+  }
+  $('#quem').textContent = st.email;
+  if(st.acl && !st.acl.has('tecnicos')){ $('#semAcesso').classList.remove('hide'); $$('.pg').forEach(p => p.classList.add('hide')); return false; }
+  return true;
+}
+
+/* ---------- dados ---------- */
+async function todas(fab){ const out = []; for(let i = 0; ; i += 1000){ const {data, error} = await fab().range(i, i + 999); if(error) throw error; out.push(...(data || [])); if(!data || data.length < 1000) break; } return out; }
+async function carregaResumo(){
+  const {data} = await sb.from('tecnicos_hub_resumo').select('*').maybeSingle(); st.resumo = data || {};
+  const r = st.resumo; const chip = $('#chipRaspagem');
+  chip.querySelector('span:last-child').textContent = 'raspagem bringIT: ' + (r.bringit_ultima_raspagem ? fData(r.bringit_ultima_raspagem) : '—');
+  chip.querySelector('.dot').style.background = r.bringit_ultima_raspagem ? ((Date.now() - new Date(r.bringit_ultima_raspagem)) / 864e5 > 45 ? 'var(--warn)' : 'var(--good)') : 'var(--muted)';
+  const c2 = $('#chipTec'); c2.querySelector('span:last-child').textContent = `técnicos no site: ${fNum(r.tecnicos_ativos || 0)}`; c2.querySelector('.dot').style.background = (r.tecnicos_ativos || 0) > 0 ? 'var(--good)' : 'var(--crit)';
+}
+async function carregaBringit(){
+  st.bringit = await todas(() => sb.from('tecnicos_bringit').select('*').order('bringit_id'));
+  st.matches = await todas(() => sb.from('tecnicos_bringit_match').select('*').order('score', {ascending:false}));
+}
+async function carregaTecnicos(){
+  st.tecnicos = await todas(() => sb.from('tecnicos').select('*').order('id'));
+  st.cadastros = await todas(() => sb.from('tecnicos_cadastro').select('*').order('criado_em', {ascending:false}));
+}
+async function carregaCand(){
+  const sel = st.candCidade;
+  if(st.candCarregada === sel) return;
+  if(sel === 'TODAS') st.cand = await todas(() => sb.from('tecnicos_candidatos').select('*').order('receita', {ascending:false}));
+  else { const [cid, uf] = sel.split('/'); st.cand = await todas(() => sb.from('tecnicos_candidatos').select('*').eq('uf', uf).ilike('cidade', cid).order('receita', {ascending:false})); }
+  st.candCarregada = sel;
+}
+async function carregaTudo(){
+  st.carregado = true;
+  if(!await carregaAcl()) return;
+  try{ await Promise.all([carregaResumo(), carregaBringit(), carregaTecnicos()]); }
+  catch(e){ $('#avisoVazio').textContent = 'Erro ao ler a Supabase: ' + (e.message || e) + ' — as tabelas do HUB já foram criadas (supabase/hub_schema.sql)?'; $('#avisoVazio').classList.remove('hide'); }
+  if(!st.bringit.length){ $('#avisoVazio').textContent = 'Nenhum parceiro da bringIT carregado ainda. Rode scripts/02_carregar_bringit.py (e 03_carregar_candidatos.py para as nossas revendas).'; $('#avisoVazio').classList.remove('hide'); }
+  preencheSelects();
+  navega(location.hash.replace('#', '') || 'bringit');
+}
+function preencheSelects(){
+  const pr = [...new Set(st.bringit.map(p => p.praca).filter(Boolean))].sort();
+  $('#bqPraca').innerHTML = '<option value="">todas as praças</option>' + pr.map(p => `<option value="${esc(p)}">${esc(p)} (${st.bringit.filter(x => x.praca === p && x.presente).length})</option>`).join('');
+  $('#nqCidade').innerHTML = PRACAS_INICIAIS.map(c => `<option value="${c}">${c.replace('/', ' / ')}</option>`).join('') + '<option value="TODAS">TODAS as cidades (lento)</option>';
+  $('#nqCidade').value = st.candCidade;
+}
+
+/* ---------- navegação ---------- */
+const TITULOS = {bringit:'1 · Parceiros da bringIT — quem são, se já atendemos, ligações', nossas:'2 · Nossas revendas e assistências — candidatas a técnico parceiro', cadastro:'3 · Cadastro em produção — o que o site mostra'};
+function navega(pg){
+  if(!TITULOS[pg]) pg = 'bringit'; st.pg = pg; fechaPainel();
+  $$('.pg').forEach(s => s.classList.toggle('hide', s.id !== 'pg-' + pg));
+  $$('.nav a[data-pg]').forEach(a => a.classList.toggle('ativo', a.dataset.pg === pg));
+  $('#titulo').textContent = TITULOS[pg];
+  if(pg === 'bringit') renderBringit(); if(pg === 'nossas') renderNossas(); if(pg === 'cadastro') renderCadastro();
+}
+addEventListener('hashchange', () => navega(location.hash.replace('#', '')));
+
+/* ---------- mapas (Leaflet + CARTO) ---------- */
+function mapa(id){
+  if(st.mapas[id]) return st.mapas[id];
+  const m = L.map(id, {scrollWheelZoom:false}).setView([-23.55, -46.63], 5);
+  st.mapas[id] = {m, tiles:null, layer:L.layerGroup().addTo(m)}; atualizaTiles(); return st.mapas[id];
+}
+function atualizaTiles(){
+  const dark = document.documentElement.dataset.tema === 'escuro';
+  for(const k in st.mapas){ const o = st.mapas[k]; if(o.tiles) o.m.removeLayer(o.tiles);
+    o.tiles = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${dark ? 'dark_all' : 'light_all'}/{z}/{x}/{y}{r}.png`, {attribution:'© OpenStreetMap · © CARTO', subdomains:'abcd', maxZoom:19}).addTo(o.m); }
+}
+function plota(id, pontos){
+  const o = mapa(id); o.layer.clearLayers(); const b = [];
+  pontos.forEach(p => { if(p.lat == null || p.lng == null) return;
+    const c = L.circleMarker([p.lat, p.lng], {radius:p.r || 6, color:p.borda || p.cor, fillColor:p.cor, fillOpacity:.8, weight:p.borda ? 2.5 : 1}).bindTooltip(p.rotulo, {direction:'top'});
+    if(p.onclick) c.on('click', p.onclick); c.addTo(o.layer); b.push([p.lat, p.lng]); });
+  setTimeout(() => { o.m.invalidateSize(); if(b.length) o.m.fitBounds(b, {padding:[24, 24], maxZoom:13}); }, 60);
+}
+
+/* ---------- painel lateral ---------- */
+function abrePainel(html){ $('#painelCorpo').innerHTML = html; $('#painel').classList.remove('hide'); $('#painel').scrollTop = 0; }
+function fechaPainel(){ $('#painel').classList.add('hide'); }
+$('#fecharPainel').onclick = fechaPainel;
+async function timeline(tipo, id){
+  const {data} = await sb.from('tecnicos_crm').select('*').eq('alvo_tipo', tipo).eq('alvo_id', String(id)).order('criado_em', {ascending:false}).limit(40);
+  return (data || []).length ? `<ul class="tl">${data.map(x => `<li><span class="q">${fDataHora(x.criado_em)} · ${esc(x.autor || '')} · ${esc(x.acao)}</span><br>${esc(x.texto || '')}</li>`).join('')}</ul>` : '<span class="muted">sem anotações ainda</span>';
+}
+async function anota(tipo, id, acao, texto){ await sb.from('tecnicos_crm').insert({alvo_tipo:tipo, alvo_id:String(id), acao, texto, autor:st.email}); }
+
+/* ===================== 1. bringIT ===================== */
+function situacao(p){
+  const ms = st.matches.filter(m => m.bringit_id === p.bringit_id);
+  if(ms.some(m => m.confirmado === true)) return 'cliente';
+  if(ms.some(m => m.confirmado === null)) return 'pendente';
+  return 'nao';
+}
+function bringitFiltrados(){
+  const q = normCid($('#bqBusca').value), pr = $('#bqPraca').value, sit = $('#bqSit').value, lig = $('#bqLig').value, sum = $('#bqSumidos').checked;
+  return st.bringit.filter(p => (sum || p.presente) && (!pr || p.praca === pr) && (!sit || situacao(p) === sit) && (!lig || (lig === 'sim') === !!p.ligado_em)
+    && (!q || normCid([p.nome, p.cidade, p.telefone, p.google_nome].join(' ')).includes(q)));
+}
+function renderBringit(){
+  const todos = st.bringit.filter(p => p.presente), rows = bringitFiltrados();
+  const nCli = todos.filter(p => situacao(p) === 'cliente').length, nPen = todos.filter(p => situacao(p) === 'pendente').length, nLig = todos.filter(p => p.ligado_em).length;
+  const nota = todos.filter(p => p.rating).reduce((s, p) => s + Number(p.rating), 0) / (todos.filter(p => p.rating).length || 1);
+  $('#kpiBringit').innerHTML = [
+    ['Parceiros deles', fNum(todos.length), `${[...new Set(todos.map(p => p.praca))].length} praças · raspagem ${fData(st.resumo.bringit_ultima_raspagem)}`, ''],
+    ['Já são nossos clientes', fNum(nCli), `${todos.length ? Math.round(100 * nCli / todos.length) : 0}% · confirmados por telefone/revisão`, 'cliente'],
+    ['Prováveis — revisar', fNum(nPen), 'nome parecido na mesma cidade', 'pendente'],
+    ['Não estão na base', fNum(todos.length - nCli - nPen), 'oportunidade de captação', 'nao'],
+    ['Já ligamos', fNum(nLig), 'anotado no HUB', ''],
+    ['Nota média (Google)', nota.toFixed(2), `${fNum(todos.reduce((s, p) => s + (p.n_avaliacoes || 0), 0))} avaliações somadas`, ''],
+  ].map(([l, v, s, f]) => `<div class="kpi ${f ? 'clk' : ''} ${f && $('#bqSit').value === f ? 'active' : ''}" data-sit="${f}"><div class="lab">${l}</div><div class="val">${v}</div><div class="sub">${s}</div></div>`).join('');
+  $$('#kpiBringit .kpi.clk').forEach(k => k.onclick = () => { $('#bqSit').value = $('#bqSit').value === k.dataset.sit ? '' : k.dataset.sit; renderBringit(); });
+  $('#mapaBringit').classList.toggle('hide', !$('#bqMapa').checked);
+  if($('#bqMapa').checked) plota('mapaBringit', rows.map(p => { const s = situacao(p); return {lat:p.lat, lng:p.lng, cor:s === 'cliente' ? '#1a8f1a' : s === 'pendente' ? '#eda100' : '#8a8f98', borda:p.ligado_em ? '#2456c9' : null,
+    rotulo:`#${p.bringit_id} ${esc(p.nome)} · ${esc(p.cidade || '')} · ★ ${p.rating ?? '—'} (${p.n_avaliacoes ?? 0})`, onclick:() => painelBringit(p.bringit_id)}; }));
+  const SIT = {cliente:['good', 'nosso cliente'], pendente:['warn', 'provável, revisar'], nao:['', 'não está na base']};
+  const STATUS = {novo:['', 'novo'], nosso_cliente:['good', 'nosso cliente'], contatado:['acc', 'contatado'], sem_interesse:['crit', 'sem interesse'], parceiro:['good', 'parceiro nosso']};
+  $('#tabBringit').innerHTML = `<thead><tr><th>ID</th><th>Parceiro (Google)</th><th>Cidade</th><th>Telefone</th><th class="num">Nota</th><th class="num">Aval.</th><th>Na nossa base?</th><th>Cliente / última compra</th><th>Status</th><th>Ligado em</th><th>Obs.</th></tr></thead><tbody>` +
+    rows.map(p => { const s = situacao(p); const ms = st.matches.filter(m => m.bringit_id === p.bringit_id && (m.confirmado === true || (s === 'pendente' && m.confirmado === null))).slice(0, 2);
+      return `<tr class="lin" data-id="${p.bringit_id}"><td class="num">${p.bringit_id}${p.presente ? '' : ' <span class="pill crit" title="não apareceu na última raspagem">saiu</span>'}</td>
+        <td><b>${esc(p.nome)}</b>${p.google_url ? ` <a href="${esc(p.google_url)}" target="_blank" rel="noopener" title="abrir no Google Maps">↗</a>` : ''}</td>
+        <td>${esc(p.cidade || '')}<span class="muted"> ${esc(p.uf || '')}</span></td><td>${telLink(p.telefone, p.telefone_e164)}</td>
+        <td class="num">${p.rating ?? '—'}</td><td class="num">${fNum(p.n_avaliacoes)}</td>
+        <td><span class="pill ${SIT[s][0]}">${SIT[s][1]}</span></td>
+        <td>${ms.map(m => `${esc(m.nome_cliente || m.razao_social || m.cnpj)} <span class="muted">(${esc(m.unidades)} · ${fData(m.ultima_compra)}${m.metodo === 'nome' ? ' · ' + Math.round(m.score * 100) + '%' : ''})</span>`).join('<br>') || '<span class="muted">—</span>'}</td>
+        <td><span class="pill ${(STATUS[p.status] || ['', p.status])[0]}">${esc((STATUS[p.status] || ['', p.status])[1])}</span></td>
+        <td>${fData(p.ligado_em)}</td><td class="muted">${esc((p.observacao || '').slice(0, 60))}</td></tr>`; }).join('') + '</tbody>';
+  $$('#tabBringit tr.lin').forEach(tr => tr.onclick = () => painelBringit(Number(tr.dataset.id)));
+}
+['bqBusca', 'bqPraca', 'bqSit', 'bqLig', 'bqMapa', 'bqSumidos'].forEach(id => $('#' + id).addEventListener('input', renderBringit));
+$('#bqCsv').onclick = () => baixaCsv('bringit_parceiros.csv', bringitFiltrados().map(p => ({id:p.bringit_id, nome:p.nome, cidade:p.cidade, uf:p.uf, telefone:p.telefone, nota:p.rating, avaliacoes:p.n_avaliacoes, google:p.google_url,
+  situacao:situacao(p), clientes:st.matches.filter(m => m.bringit_id === p.bringit_id && m.confirmado).map(m => `${m.nome_cliente} (${m.unidades})`).join(' | '), status:p.status, ligado_em:p.ligado_em, observacao:p.observacao, presente:p.presente, ultima_raspagem:p.ultima_captura})));
+
+async function painelBringit(id){
+  const p = st.bringit.find(x => x.bringit_id === id); if(!p) return;
+  const ms = st.matches.filter(m => m.bringit_id === id);
+  const MET = {telefone:'telefone bate', nome:'nome parecido', manual:'manual'};
+  abrePainel(`<span class="eyebrow">bringIT #${p.bringit_id} · ${esc(p.praca || '')}${p.presente ? '' : ' · <span class="pill crit">saiu da lista deles</span>'}</span><h2>${esc(p.nome)}</h2>
+    <div class="muted" style="font-size:12.5px">${esc(p.google_nome && p.google_nome !== p.nome ? 'Google: ' + p.google_nome : '')}</div>
+    <div class="kv" style="margin-top:10px"><b>Cidade</b><span>${esc(p.cidade || '—')} ${esc(p.uf || '')}</span><b>Telefone</b><span>${telLink(p.telefone, p.telefone_e164)}</span>
+      <b>Google</b><span>★ ${p.rating ?? '—'} · ${fNum(p.n_avaliacoes)} avaliações ${p.google_url ? `· <a href="${esc(p.google_url)}" target="_blank" rel="noopener">abrir no Maps ↗</a>` : ''}</span>
+      <b>Na lista deles</b><span>desde ${fData(p.primeira_captura)} · visto em ${fData(p.ultima_captura)}</span>
+      <b>Parceiro TOP</b><span>${p.sponsored ? 'sim' : 'não'} · parceiro desde: ${esc(p.parceiro_desde || '—')} · serviços: ${p.servicos_concluidos ?? '—'}</span></div>
+    <div class="sec"><h3>Está na nossa base?</h3>
+      ${ms.length ? ms.map(m => `<div style="padding:6px 0;border-bottom:1px dashed var(--hair)"><b>${esc(m.nome_cliente || '—')}</b> <span class="muted">${esc(m.razao_social || '')}</span><br>
+        <span class="muted">${cnpjFmt(m.cnpj)} · cód. ${esc(m.cod_cliente || '—')} · ${esc(m.cidade || '')}/${esc(m.uf || '')} · compra em ${esc(m.unidades)} · última ${fData(m.ultima_compra)} · ${fNum(m.nfs)} NFs · ${fBRL(m.receita)}</span><br>
+        <span class="pill ${m.confirmado === true ? 'good' : m.confirmado === false ? 'crit' : 'warn'}">${m.confirmado === true ? 'confirmado' : m.confirmado === false ? 'não é' : 'pendente'}</span>
+        <span class="muted">${MET[m.metodo] || esc(m.metodo)}${m.metodo === 'nome' ? ' · ' + Math.round(m.score * 100) + '%' : ''}</span>
+        ${m.confirmado === null ? ` <button class="btn ok sm" data-act="match" data-mid="${m.id}" data-v="1">✔ é este</button> <button class="btn sec sm" data-act="match" data-mid="${m.id}" data-v="0">✖ não é</button>` : ` <button class="btn sec sm" data-act="match" data-mid="${m.id}" data-v="">↩ reabrir</button>`}</div>`).join('')
+      : '<span class="muted">nenhum cliente com este telefone ou nome parecido na mesma cidade (BBDI e BB Baterias).</span>'}
+      <div class="acoes"><input type="text" id="bqCnpjManual" placeholder="ligar a um CNPJ manualmente (só dígitos)" style="flex:1"><button class="btn sec sm" data-act="matchManual">+ ligar</button></div></div>
+    <div class="sec"><h3>Relacionamento</h3>
+      <div class="acoes"><button class="btn sm" data-act="ligado">📞 Liguei hoje</button>
+        <select id="bqStatusSel"><option value="novo">novo</option><option value="nosso_cliente">nosso cliente</option><option value="contatado">contatado</option><option value="sem_interesse">sem interesse</option><option value="parceiro">virou parceiro nosso</option></select>
+        <button class="btn sec sm" data-act="status">salvar status</button></div>
+      <div class="kv" style="margin-top:8px"><b>Ligado em</b><span>${fData(p.ligado_em)}</span><b>Atualizado</b><span>${fDataHora(p.atualizado_em)} ${esc(p.atualizado_por || '')}</span></div>
+      <textarea id="bqObs" placeholder="observação fixa (aparece na tabela)" style="margin-top:8px">${esc(p.observacao || '')}</textarea>
+      <div class="acoes"><button class="btn sec sm" data-act="obs">salvar observação</button></div>
+      <textarea id="bqNota" placeholder="anotação com data (ex.: falei com o dono, pediu tabela)" style="margin-top:8px"></textarea>
+      <div class="acoes"><button class="btn sec sm" data-act="nota">+ anotar</button></div>
+      <div id="bqTl" style="margin-top:8px" class="muted">carregando anotações…</div></div>
+    <div class="sec"><h3>Evolução nas raspagens</h3><div id="bqHist" class="muted">carregando…</div></div>`);
+  $('#bqStatusSel').value = p.status || 'novo';
+  $('#bqTl').innerHTML = await timeline('bringit', id);
+  const {data:h} = await sb.from('tecnicos_bringit_hist').select('*').eq('bringit_id', id).order('capturado_em');
+  $('#bqHist').innerHTML = (h || []).length ? `<table class="tabela"><thead><tr><th>Raspagem</th><th class="num">Nota</th><th class="num">Aval.</th><th>Cidade</th><th>Listado</th></tr></thead><tbody>${h.map(x => `<tr><td>${fData(x.capturado_em)}</td><td class="num">${x.rating ?? '—'}</td><td class="num">${fNum(x.n_avaliacoes)}</td><td>${esc(x.cidade || '')}</td><td>${x.presente ? 'sim' : '<span class="pill crit">não</span>'}</td></tr>`).join('')}</tbody></table>` : 'sem histórico';
+  $('#painelCorpo').onclick = async e => {
+    const b = e.target.closest('[data-act]'); if(!b) return; const act = b.dataset.act;
+    try{
+      if(act === 'match'){ const v = b.dataset.v === '' ? null : b.dataset.v === '1';
+        const {error} = await sb.from('tecnicos_bringit_match').update({confirmado:v, revisado_por:st.email, revisado_em:agora()}).eq('id', Number(b.dataset.mid)); if(error) throw error;
+        const m = st.matches.find(x => x.id === Number(b.dataset.mid)); m.confirmado = v;
+        if(v === true && (p.status === 'novo')){ await sb.from('tecnicos_bringit').update({status:'nosso_cliente', atualizado_por:st.email, atualizado_em:agora()}).eq('bringit_id', id); p.status = 'nosso_cliente'; }
+        await anota('bringit', id, 'match', `${v === true ? 'confirmou' : v === false ? 'descartou' : 'reabriu'} ${m.nome_cliente || m.cnpj}`); }
+      if(act === 'matchManual'){ const c = soDig($('#bqCnpjManual').value); if(c.length !== 14 && c.length !== 11) return toast('informe CNPJ (14) ou CPF (11) só com dígitos');
+        const {data:cand} = await sb.from('tecnicos_candidatos').select('*').eq('cnpj', c).maybeSingle();
+        const {data:novo, error} = await sb.from('tecnicos_bringit_match').insert({bringit_id:id, cnpj:c, unidades:cand?.unidades, cod_cliente:cand?.cod_001 || cand?.cod_002, nome_cliente:cand?.nome_fantasia, razao_social:cand?.razao_social, cidade:cand?.cidade, uf:cand?.uf, metodo:'manual', score:1, ultima_compra:cand?.ultima_compra, receita:cand?.receita, nfs:cand?.nfs, confirmado:true, revisado_por:st.email, revisado_em:agora()}).select().single(); if(error) throw error;
+        st.matches.push(novo); await anota('bringit', id, 'match', 'ligou manualmente ao ' + cnpjFmt(c)); }
+      if(act === 'ligado'){ const {error} = await sb.from('tecnicos_bringit').update({ligado_em:hoje(), status:p.status === 'novo' ? 'contatado' : p.status, atualizado_por:st.email, atualizado_em:agora()}).eq('bringit_id', id); if(error) throw error; p.ligado_em = hoje(); if(p.status === 'novo') p.status = 'contatado'; await anota('bringit', id, 'ligacao', 'ligação registrada'); }
+      if(act === 'status'){ const s = $('#bqStatusSel').value; const {error} = await sb.from('tecnicos_bringit').update({status:s, atualizado_por:st.email, atualizado_em:agora()}).eq('bringit_id', id); if(error) throw error; await anota('bringit', id, 'status', 'status → ' + s); p.status = s; }
+      if(act === 'obs'){ const o = $('#bqObs').value.trim(); const {error} = await sb.from('tecnicos_bringit').update({observacao:o || null, atualizado_por:st.email, atualizado_em:agora()}).eq('bringit_id', id); if(error) throw error; p.observacao = o; }
+      if(act === 'nota'){ const t = $('#bqNota').value.trim(); if(!t) return; await anota('bringit', id, 'nota', t); }
+      toast('salvo'); renderBringit(); painelBringit(id);
+    }catch(err){ toast('erro: ' + (err.message || err)); }
+  };
+}
+
+/* ===================== 2. nossas revendas ===================== */
+function candFiltrados(){
+  const q = normCid($('#nqBusca').value), s = $('#nqStatus').value, un = $('#nqUn').value, at = $('#nqAtivos').checked;
+  return st.cand.filter(c => (!at || c.ativo_24m || c.status === 'autorizado') && (!s || c.status === s) && (!un || (c.unidades || '').includes(un))
+    && (!q || normCid([c.nome_fantasia, c.razao_social, c.cnpj, c.telefone, c.cidade, c.email].join(' ')).includes(q)));
+}
+async function renderNossas(){
+  if(st.candCarregada !== st.candCidade){ $('#tabNossas').innerHTML = '<tbody><tr><td class="muted">carregando…</td></tr></tbody>'; try{ await carregaCand(); }catch(e){ toast('erro: ' + e.message); st.cand = []; } }
+  const rows = candFiltrados();
+  const k = (f) => rows.filter(f).length;
+  $('#kpiNossas').innerHTML = [
+    ['Candidatas (filtro)', fNum(rows.length), `${fNum(st.cand.length)} na seleção · ${fNum(st.resumo.candidatos || 0)} no Brasil`],
+    ['Ativas 24m', fNum(k(c => c.ativo_24m)), 'compraram desde out/24'],
+    ['Compram na BBDI', fNum(k(c => (c.unidades || '').includes('001'))), 'revenda/assistência (A1_222)'],
+    ['Compram na BB Baterias', fNum(k(c => (c.unidades || '').includes('002'))), 'a preço de consumidor'],
+    ['Contatadas', fNum(k(c => c.status === 'contatado')), 'anotado no HUB'],
+    ['Autorizadas (no site)', fNum(k(c => c.status === 'autorizado')), 'já em tecnicos'],
+    ['Com posição no mapa', fNum(k(c => c.lat != null)), `${fNum(k(c => c.geo_fonte === 'cep'))} pelo CEP`],
+  ].map(([l, v, s]) => `<div class="kpi"><div class="lab">${l}</div><div class="val">${v}</div><div class="sub">${s}</div></div>`).join('');
+  $('#mapaNossas').classList.toggle('hide', !$('#nqMapa').checked);
+  if($('#nqMapa').checked){
+    const pts = rows.map(c => ({lat:c.lat, lng:c.lng, r:c.geo_fonte === 'cidade' ? 3 : 6, cor:c.status === 'autorizado' ? '#1a8f1a' : c.status === 'contatado' ? '#7c5cd6' : '#2a78d6',
+      rotulo:`${esc(c.nome_fantasia || c.razao_social)} · ${esc(c.cidade || '')} · ${esc(c.unidades)} · última ${fData(c.ultima_compra)}${c.geo_fonte === 'cidade' ? ' · posição aproximada' : ''}`, onclick:() => painelCand(c.cnpj)}));
+    if($('#nqBringit').checked){ const [cid, uf] = (st.candCidade + '/').split('/'); st.bringit.filter(p => p.presente && (st.candCidade === 'TODAS' || normCid(p.cidade) === cid || normCid(p.praca) === cid))
+      .forEach(p => pts.push({lat:p.lat, lng:p.lng, r:5, cor:'#c25a2e', rotulo:`bringIT #${p.bringit_id} ${esc(p.nome)} · ★ ${p.rating ?? '—'}`, onclick:() => painelBringit(p.bringit_id)})); }
+    plota('mapaNossas', pts);
+  }
+  const ST = {candidato:['', 'candidata'], contatado:['acc', 'contatada'], autorizado:['good', 'autorizada'], sem_interesse:['crit', 'sem interesse'], recusado:['crit', 'recusada']};
+  $('#tabNossas').innerHTML = `<thead><tr><th>Nome fantasia</th><th>Razão social</th><th>Cidade</th><th>Compra em</th><th>Última compra</th><th class="num">NFs</th><th class="num">Receita</th><th>Telefone</th><th>Status</th><th>Mapa</th><th>Obs.</th></tr></thead><tbody>` +
+    rows.slice(0, 1500).map(c => `<tr class="lin" data-id="${esc(c.cnpj)}"><td><b>${esc(c.nome_fantasia || '—')}</b></td><td class="muted">${esc(c.razao_social || '')}</td><td>${esc(c.cidade || '')}<span class="muted"> ${esc(c.uf || '')}</span></td>
+      <td>${esc(c.unidades || '')}${c.grupo_cliente ? `<br><span class="muted" style="font-size:11px">${esc(c.grupo_cliente)}</span>` : ''}</td><td>${fData(c.ultima_compra)}${c.ativo_24m ? '' : ' <span class="pill">inativa</span>'}</td>
+      <td class="num">${fNum(c.nfs)}</td><td class="num">${fBRL(c.receita)}</td><td>${telLink(c.ddd && c.telefone ? `(${c.ddd}) ${c.telefone}` : c.telefone, c.telefone_e164)}</td>
+      <td><span class="pill ${(ST[c.status] || ['', c.status])[0]}">${esc((ST[c.status] || ['', c.status])[1])}</span></td>
+      <td>${c.lat == null ? '<span class="pill warn">sem posição</span>' : c.geo_fonte === 'cidade' ? '<span class="muted">aprox.</span>' : 'CEP'}</td><td class="muted">${esc((c.observacao || '').slice(0, 50))}</td></tr>`).join('') + '</tbody>' + (rows.length > 1500 ? `<tfoot><tr><td colspan="11" class="muted">mostrando 1.500 de ${fNum(rows.length)} — refine o filtro</td></tr></tfoot>` : '');
+  $$('#tabNossas tr.lin').forEach(tr => tr.onclick = () => painelCand(tr.dataset.id));
+}
+$('#nqCidade').addEventListener('change', () => { st.candCidade = $('#nqCidade').value; renderNossas(); });
+['nqBusca', 'nqStatus', 'nqUn', 'nqAtivos', 'nqMapa', 'nqBringit'].forEach(id => $('#' + id).addEventListener('input', renderNossas));
+$('#nqCsv').onclick = () => baixaCsv('nossas_revendas.csv', candFiltrados().map(c => ({cnpj:c.cnpj, nome_fantasia:c.nome_fantasia, razao_social:c.razao_social, cidade:c.cidade, uf:c.uf, cep:c.cep, unidades:c.unidades, grupo:c.grupo_cliente, cod_001:c.cod_001, cod_002:c.cod_002, telefone:c.ddd ? `(${c.ddd}) ${c.telefone}` : c.telefone, email:c.email, primeira_compra:c.primeira_compra, ultima_compra:c.ultima_compra, nfs:c.nfs, receita:c.receita, status:c.status, ligado_em:c.ligado_em, observacao:c.observacao})));
+
+async function painelCand(cnpj){
+  const c = st.cand.find(x => x.cnpj === cnpj); if(!c) return;
+  const tec = c.tecnico_id ? st.tecnicos.find(t => t.id === c.tecnico_id) : null;
+  abrePainel(`<span class="eyebrow">${cnpjFmt(c.cnpj)} · ${esc(c.unidades || '')} ${c.grupo_cliente ? '· ' + esc(c.grupo_cliente) : ''}</span><h2>${esc(c.nome_fantasia || c.razao_social)}</h2><div class="muted" style="font-size:12.5px">${esc(c.razao_social || '')}</div>
+    <div class="kv" style="margin-top:10px"><b>Cidade</b><span>${esc(c.cidade || '—')} ${esc(c.uf || '')} · CEP ${esc(c.cep || '—')}</span><b>Telefone</b><span>${telLink(c.ddd && c.telefone ? `(${c.ddd}) ${c.telefone}` : c.telefone, c.telefone_e164)}</span>
+      <b>E-mail</b><span>${c.email ? `<a href="mailto:${esc(c.email)}">${esc(c.email)}</a>` : '—'}</span><b>Códigos</b><span>BBDI ${esc(c.cod_001 || '—')} · BB Baterias ${esc(c.cod_002 || '—')}</span>
+      <b>Compras</b><span>${fNum(c.nfs)} NFs · ${fBRL(c.receita)} · de ${fData(c.primeira_compra)} a ${fData(c.ultima_compra)} ${c.ativo_24m ? '<span class="pill good">ativa</span>' : '<span class="pill">inativa</span>'}</span>
+      <b>Posição</b><span>${c.lat == null ? '<span class="pill warn">sem coordenada</span>' : `${c.lat.toFixed(5)}, ${c.lng.toFixed(5)} <span class="muted">(${esc(c.geo_fonte || '')})</span>`} ${c.cep ? ' <button class="btn sec sm" data-act="geo">📍 geocodificar pelo CEP</button>' : ''}</span>
+      <b>No site</b><span>${tec ? `técnico #${tec.id} ${tec.ativo ? '<span class="pill good">ativo</span>' : '<span class="pill">inativo</span>'} <button class="btn sec sm" data-act="verTec">abrir cadastro</button>` : '<span class="muted">ainda não</span>'}</span></div>
+    <div class="sec"><h3>Ações</h3><div class="acoes">
+      <button class="btn sm" data-act="ligado">📞 Liguei hoje</button>
+      <button class="btn ok sm" data-act="autorizar" ${c.status === 'autorizado' ? 'disabled' : ''}>✅ Autorizar → vai para o site</button>
+      <button class="btn sec sm" data-act="st" data-v="sem_interesse">sem interesse</button><button class="btn sec sm" data-act="st" data-v="recusado">recusar</button><button class="btn sec sm" data-act="st" data-v="candidato">voltar a candidata</button></div>
+      <p class="muted" style="font-size:12px;margin:8px 0 0">Autorizar cria a linha em <code>tecnicos</code> (origem = cadastro, parceiro desde = 1ª compra, serviços = nº de NFs) e ela passa a aparecer no modal do site para CEPs num raio de 50 km. Precisa de coordenada.</p>
+      <div class="kv" style="margin-top:8px"><b>Ligado em</b><span>${fData(c.ligado_em)}</span><b>Atualizado</b><span>${fDataHora(c.atualizado_em)} ${esc(c.atualizado_por || '')}</span></div>
+      <textarea id="nqObs" placeholder="observação fixa" style="margin-top:8px">${esc(c.observacao || '')}</textarea><div class="acoes"><button class="btn sec sm" data-act="obs">salvar observação</button></div>
+      <textarea id="nqNota" placeholder="anotação com data" style="margin-top:8px"></textarea><div class="acoes"><button class="btn sec sm" data-act="nota">+ anotar</button></div>
+      <div id="nqTl" style="margin-top:8px" class="muted">carregando…</div></div>`);
+  $('#nqTl').innerHTML = await timeline('candidato', cnpj);
+  $('#painelCorpo').onclick = async e => {
+    const b = e.target.closest('[data-act]'); if(!b) return; const act = b.dataset.act; const upd = o => sb.from('tecnicos_candidatos').update({...o, atualizado_por:st.email, atualizado_em:agora()}).eq('cnpj', cnpj);
+    try{
+      if(act === 'geo'){ const {data, error} = await sb.rpc('tecnicos_geocode_cep', {p_cep:c.cep}); if(error) throw error; const g = data?.[0]; if(!g) throw new Error('CEP não localizado');
+        const {error:e2} = await upd({lat:g.lat, lng:g.lng, geo_fonte:'cep'}); if(e2) throw e2; Object.assign(c, {lat:g.lat, lng:g.lng, geo_fonte:'cep'}); }
+      if(act === 'ligado'){ const {error} = await upd({ligado_em:hoje(), status:c.status === 'candidato' ? 'contatado' : c.status}); if(error) throw error; c.ligado_em = hoje(); if(c.status === 'candidato') c.status = 'contatado'; await anota('candidato', cnpj, 'ligacao', 'ligação registrada'); }
+      if(act === 'st'){ const {error} = await upd({status:b.dataset.v}); if(error) throw error; c.status = b.dataset.v; await anota('candidato', cnpj, 'status', 'status → ' + b.dataset.v); }
+      if(act === 'obs'){ const o = $('#nqObs').value.trim(); const {error} = await upd({observacao:o || null}); if(error) throw error; c.observacao = o; }
+      if(act === 'nota'){ const t = $('#nqNota').value.trim(); if(!t) return; await anota('candidato', cnpj, 'nota', t); }
+      if(act === 'autorizar'){ if(c.lat == null) throw new Error('sem coordenada: clique em "geocodificar pelo CEP" antes'); if(!confirm(`Autorizar "${c.nome_fantasia || c.razao_social}" a aparecer no site?`)) return;
+        const {data:tid, error} = await sb.rpc('tecnicos_autorizar_candidato', {p_cnpj:cnpj, p_autor:st.email}); if(error) throw error; c.status = 'autorizado'; c.tecnico_id = tid; await carregaTecnicos(); await carregaResumo(); }
+      if(act === 'verTec'){ location.hash = 'cadastro'; setTimeout(() => painelTec(c.tecnico_id), 150); return; }
+      toast('salvo'); renderNossas(); painelCand(cnpj);
+    }catch(err){ toast('erro: ' + (err.message || err)); }
+  };
+}
+
+/* ===================== 3. cadastro em produção ===================== */
+function renderCadastro(){
+  const r = st.resumo, q = normCid($('#cqBusca').value), so = $('#cqAtivos').checked;
+  const rows = st.tecnicos.filter(t => (!so || t.ativo) && (!q || normCid([t.nome, t.cidade, t.telefone, t.cnpj].join(' ')).includes(q)));
+  $('#kpiCad').innerHTML = [
+    ['Técnicos ativos no site', fNum(st.tecnicos.filter(t => t.ativo).length), `${fNum(st.tecnicos.length)} cadastrados · ${fNum(st.tecnicos.filter(t => t.destaque).length)} Parceiro TOP`],
+    ['Vindos da nossa base', fNum(st.tecnicos.filter(t => t.origem === 'cadastro').length), 'origem = cadastro'],
+    ['Vindos do Google', fNum(st.tecnicos.filter(t => t.origem === 'google').length), 'coleta Places (aguarda chave)'],
+    ['Cadastros pendentes', fNum(st.cadastros.filter(c => c.status === 'pendente').length), 'formulário do site'],
+    ['Buscas no modal (30d)', fNum(r.buscas_30d || 0), 'tecnicos_busca'],
+    ['Cliques WhatsApp (30d)', fNum(r.contatos_30d || 0), 'tecnicos_contato'],
+  ].map(([l, v, s]) => `<div class="kpi"><div class="lab">${l}</div><div class="val">${v}</div><div class="sub">${s}</div></div>`).join('');
+  $('#tabTec').innerHTML = `<thead><tr><th>#</th><th>Nome</th><th>Cidade</th><th>Telefone / WhatsApp</th><th class="num">Nota</th><th class="num">Aval.</th><th>Origem</th><th>Parceiro desde</th><th class="num">Serviços</th><th>TOP</th><th>Ativo</th><th>Atualizado</th></tr></thead><tbody>` +
+    (rows.length ? rows.map(t => `<tr class="lin" data-id="${t.id}"><td class="num">${t.id}</td><td><b>${esc(t.nome)}</b>${t.cnpj ? `<br><span class="muted" style="font-size:11px">${cnpjFmt(t.cnpj)}</span>` : ''}</td><td>${esc(t.cidade || '')}<span class="muted"> ${esc(t.uf || '')}</span>${t.bairro ? `<br><span class="muted" style="font-size:11px">${esc(t.bairro)}</span>` : ''}</td>
+      <td>${telLink(t.telefone, t.whatsapp || t.telefone_e164)}${t.whatsapp ? '' : ' <span class="pill warn" title="sem WhatsApp: o botão de orçamento não aparece">sem WhatsApp</span>'}</td><td class="num">${t.rating ?? '—'}</td><td class="num">${fNum(t.n_avaliacoes)}</td>
+      <td>${esc(t.origem)}</td><td>${fData(t.parceiro_desde)}</td><td class="num">${fNum(t.servicos_concluidos)}</td><td>${t.destaque ? '<span class="pill good">TOP</span>' : ''}</td><td>${t.ativo ? '<span class="pill good">sim</span>' : '<span class="pill crit">não</span>'}</td><td class="muted">${fData(t.atualizado_em)}</td></tr>`).join('')
+    : '<tr><td colspan="12" class="muted">nenhum técnico em produção ainda — autorize candidatas na parte 2 ou cadastre manualmente.</td></tr>') + '</tbody>';
+  $$('#tabTec tr.lin').forEach(tr => tr.onclick = () => painelTec(Number(tr.dataset.id)));
+  const cads = st.cadastros;
+  $('#tabCad').innerHTML = `<thead><tr><th>Recebido</th><th>Empresa</th><th>CNPJ</th><th>Responsável</th><th>Contato</th><th>CEP</th><th>Google</th><th>Origem</th><th>Status</th><th></th></tr></thead><tbody>` +
+    (cads.length ? cads.map(c => `<tr><td>${fDataHora(c.criado_em)}</td><td><b>${esc(c.nome_empresa)}</b></td><td>${cnpjFmt(c.cnpj) || '—'}</td><td>${esc(c.responsavel || '—')}</td><td>${telLink(c.telefone)}<br><span class="muted">${esc(c.email || '')}</span></td><td>${esc(c.cep || '—')}</td>
+      <td>${c.google_url ? `<a href="${esc(c.google_url)}" target="_blank" rel="noopener">↗</a>` : '—'}</td><td>${esc(c.origem_form || '')}</td><td><span class="pill ${c.status === 'aprovado' ? 'good' : c.status === 'recusado' ? 'crit' : 'warn'}">${esc(c.status)}</span>${c.tecnico_id ? ` <span class="muted">#${c.tecnico_id}</span>` : ''}</td>
+      <td>${c.status === 'pendente' ? `<button class="btn ok sm" data-cad="${c.id}" data-v="aprovar">aprovar</button> <button class="btn sec sm" data-cad="${c.id}" data-v="recusar">recusar</button>` : ''}</td></tr>`).join('')
+    : '<tr><td colspan="10" class="muted">nenhum cadastro recebido pelo formulário ainda.</td></tr>') + '</tbody>';
+  $$('#tabCad [data-cad]').forEach(b => b.onclick = () => decideCadastro(Number(b.dataset.cad), b.dataset.v));
+}
+['cqBusca', 'cqAtivos'].forEach(id => $('#' + id).addEventListener('input', renderCadastro));
+$('#cqNovo').onclick = () => painelTec(null);
+
+const CAMPOS_TEC = [['nome', 'Nome (como aparece no site)', 'text', 'full'], ['telefone', 'Telefone (exibido)', 'text'], ['whatsapp', 'WhatsApp (só dígitos, com DDD)', 'text'],
+  ['cep', 'CEP', 'text'], ['endereco', 'Endereço', 'text'], ['bairro', 'Bairro', 'text'], ['cidade', 'Cidade', 'text'], ['uf', 'UF', 'text'],
+  ['lat', 'Latitude', 'number'], ['lng', 'Longitude', 'number'], ['google_maps_url', 'Link do Google Maps', 'text', 'full'], ['rating', 'Nota Google (0–5)', 'number'], ['n_avaliacoes', 'Nº de avaliações', 'number'],
+  ['parceiro_desde', 'Parceiro desde', 'date'], ['servicos_concluidos', 'Serviços concluídos', 'number'], ['site', 'Site', 'text'], ['email', 'E-mail', 'text'], ['responsavel', 'Responsável', 'text'], ['cnpj', 'CNPJ', 'text'],
+  ['observacoes', 'Observações internas', 'text', 'full']];
+function painelTec(id){
+  const t = id ? st.tecnicos.find(x => x.id === id) : {origem:'cadastro', ativo:true, destaque:false};
+  if(!t) return;
+  abrePainel(`<span class="eyebrow">${id ? 'técnico #' + id + ' · origem ' + esc(t.origem) : 'novo técnico (manual)'}</span><h2>${esc(t.nome || 'Novo técnico')}</h2>
+    <div class="sec"><h3>Como aparece no modal do site</h3><div class="preview"><div class="pv-nome">${esc(t.nome || 'Nome do técnico')} ${t.destaque ? '<span class="pill good">Parceiro TOP</span>' : ''}</div>
+      <div class="pv-sub">${esc(t.bairro ? t.bairro + ' · ' : '')}${esc(t.cidade || 'Cidade')} · ★ ${t.rating ?? '—'} (${fNum(t.n_avaliacoes || 0)} avaliações)${t.parceiro_desde ? ' · Parceiro desde ' + new Date(t.parceiro_desde + 'T12:00:00').getFullYear() : ''}${t.servicos_concluidos ? ' · Serviços: ' + fNum(t.servicos_concluidos) + '+' : ''}</div>
+      <span class="pv-btn">Solicitar orçamento (WhatsApp)</span></div></div>
+    <div class="sec"><h3>Dados</h3><form id="formTec" class="form">
+      ${CAMPOS_TEC.map(([k, l, ty, full]) => `<label class="${full || ''}">${l}<input name="${k}" type="${ty}" step="any" value="${esc(ty === 'date' ? (t[k] || '').slice(0, 10) : (t[k] ?? ''))}"></label>`).join('')}
+      <label><input type="checkbox" name="ativo" ${t.ativo ? 'checked' : ''}> ativo (aparece no site)</label><label><input type="checkbox" name="destaque" ${t.destaque ? 'checked' : ''}> Parceiro TOP (primeiro na lista)</label>
+    </form>
+    <div class="acoes"><button class="btn sec sm" data-act="geo">📍 lat/lng pelo CEP</button><button class="btn sm" data-act="salvar">💾 Salvar</button>${id ? '<button class="btn warn sm" data-act="desativar">desativar</button>' : ''}</div>
+    <p class="muted" style="font-size:12px">Nota e avaliações hoje são manuais; quando a chave do Google Places estiver ativa, a coleta mensal atualiza sozinha (ToS Google: no máximo 30 dias).</p></div>
+    ${id ? `<div class="sec"><h3>Anotações</h3><textarea id="tqNota" placeholder="anotação com data"></textarea><div class="acoes"><button class="btn sec sm" data-act="nota">+ anotar</button></div><div id="tqTl" class="muted" style="margin-top:8px">carregando…</div></div>` : ''}`);
+  if(id) timeline('tecnico', id).then(h => { const el = $('#tqTl'); if(el) el.innerHTML = h; });
+  $('#painelCorpo').onclick = async e => {
+    const b = e.target.closest('[data-act]'); if(!b) return; const act = b.dataset.act; const f = $('#formTec');
+    const lerForm = () => { const o = {}; CAMPOS_TEC.forEach(([k, , ty]) => { let v = f.elements[k].value.trim(); if(ty === 'number') v = v === '' ? null : Number(v); else v = v || null; o[k] = v; });
+      o.ativo = f.elements.ativo.checked; o.destaque = f.elements.destaque.checked; if(o.whatsapp) o.whatsapp = soDig(o.whatsapp).replace(/^(?!55)/, '55'); if(o.cep) o.cep = soDig(o.cep); if(o.cnpj) o.cnpj = soDig(o.cnpj); if(o.uf) o.uf = o.uf.toUpperCase().slice(0, 2);
+      o.telefone_e164 = o.whatsapp || (o.telefone ? '55' + soDig(o.telefone) : null); o.tipo_telefone = o.telefone_e164 && o.telefone_e164.length === 13 && o.telefone_e164[4] === '9' ? 'celular' : 'fixo'; return o; };
+    try{
+      if(act === 'geo'){ const cep = soDig(f.elements.cep.value); if(cep.length !== 8) return toast('CEP inválido'); const {data, error} = await sb.rpc('tecnicos_geocode_cep', {p_cep:cep}); if(error) throw error; const g = data?.[0]; if(!g) throw new Error('CEP não localizado');
+        f.elements.lat.value = g.lat; f.elements.lng.value = g.lng; if(!f.elements.cidade.value) f.elements.cidade.value = g.cidade || ''; if(!f.elements.uf.value) f.elements.uf.value = g.uf || ''; if(!f.elements.bairro.value) f.elements.bairro.value = g.bairro || ''; toast('coordenada preenchida'); return; }
+      if(act === 'salvar'){ const o = lerForm(); if(!o.nome) throw new Error('nome obrigatório'); if(o.lat == null || o.lng == null) throw new Error('lat/lng obrigatórios (use o botão do CEP)'); o.atualizado_em = agora();
+        if(id){ const {error} = await sb.from('tecnicos').update(o).eq('id', id); if(error) throw error; await anota('tecnico', id, 'nota', 'cadastro editado'); }
+        else { o.origem = 'cadastro'; const {data, error} = await sb.from('tecnicos').insert(o).select().single(); if(error) throw error; id = data.id; await anota('tecnico', id, 'nota', 'cadastro criado manualmente'); } }
+      if(act === 'desativar'){ if(!confirm('Tirar este técnico do site?')) return; const {error} = await sb.from('tecnicos').update({ativo:false, atualizado_em:agora()}).eq('id', id); if(error) throw error; await anota('tecnico', id, 'status', 'desativado'); }
+      if(act === 'nota'){ const tx = $('#tqNota').value.trim(); if(!tx) return; await anota('tecnico', id, 'nota', tx); }
+      toast('salvo'); await carregaTecnicos(); await carregaResumo(); renderCadastro(); painelTec(id);
+    }catch(err){ toast('erro: ' + (err.message || err)); }
+  };
+}
+async function decideCadastro(cid, v){
+  const c = st.cadastros.find(x => x.id === cid); if(!c) return;
+  try{
+    if(v === 'recusar'){ const {error} = await sb.from('tecnicos_cadastro').update({status:'recusado'}).eq('id', cid); if(error) throw error; await anota('cadastro', cid, 'status', 'recusado'); }
+    else {
+      let g = null; if(c.cep){ const {data} = await sb.rpc('tecnicos_geocode_cep', {p_cep:c.cep}); g = data?.[0] || null; }
+      if(!g) throw new Error('CEP do cadastro não geocodificou — aprove criando o técnico manualmente (➕ Novo técnico)');
+      const tel = soDig(c.telefone); const e164 = tel ? (tel.startsWith('55') ? tel : '55' + tel) : null;
+      const {data:t, error} = await sb.from('tecnicos').insert({nome:c.nome_empresa, cep:c.cep, lat:g.lat, lng:g.lng, cidade:g.cidade, uf:g.uf, bairro:g.bairro, telefone:c.telefone, telefone_e164:e164, tipo_telefone:e164 && e164.length === 13 && e164[4] === '9' ? 'celular' : 'fixo',
+        whatsapp:e164, email:c.email, responsavel:c.responsavel, cnpj:soDig(c.cnpj) || null, google_maps_url:c.google_url, origem:'cadastro', ativo:true, parceiro_desde:hoje(), observacoes:'aprovado do formulário do site #' + cid}).select().single(); if(error) throw error;
+      const {error:e2} = await sb.from('tecnicos_cadastro').update({status:'aprovado', tecnico_id:t.id}).eq('id', cid); if(e2) throw e2; await anota('tecnico', t.id, 'nota', 'criado a partir do cadastro #' + cid + ' (' + st.email + ')');
+    }
+    toast('ok'); await carregaTecnicos(); await carregaResumo(); renderCadastro();
+  }catch(err){ toast('erro: ' + (err.message || err)); }
+}
+
+/* ---------- util ---------- */
+function baixaCsv(nome, rows){
+  if(!rows.length) return toast('nada para exportar');
+  const cols = Object.keys(rows[0]); const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
+  const csv = '﻿' + cols.join(';') + '\n' + rows.map(r => cols.map(c => q(r[c])).join(';')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], {type:'text/csv;charset=utf-8'})); a.download = nome; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+</script>
+</body>
+</html>
